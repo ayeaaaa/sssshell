@@ -1,0 +1,128 @@
+import { readFileSync, writeFileSync } from 'node:fs'
+import { BrowserWindow, dialog, ipcMain } from 'electron'
+import type { IpcMainInvokeEvent, OpenDialogOptions } from 'electron'
+import { IPC } from '@shared/ipc'
+import type { ConnectionConfig, SshConnectOptions, SshResizeRequest, SshWriteRequest } from '@shared/types'
+import type { ConnectionStore } from '../store/connectionStore'
+import type { SessionManager } from '../ssh/SessionManager'
+import type { SftpService } from '../sftp/SftpService'
+import type { MonitorService } from '../monitor/MonitorService'
+import { broadcast } from './broadcast'
+
+export interface IpcDeps {
+  store: ConnectionStore
+  sessions: SessionManager
+  sftp: SftpService
+  monitor: MonitorService
+}
+
+export function registerIpc({ store, sessions, sftp, monitor }: IpcDeps): void {
+  // ---------- 连接配置 ----------
+  ipcMain.handle(IPC.connectionList, (): ConnectionConfig[] => store.list())
+
+  ipcMain.handle(IPC.connectionSave, (_event, config: ConnectionConfig): ConnectionConfig => store.save(config))
+
+  ipcMain.handle(IPC.connectionDelete, (_event, id: string): boolean => store.delete(id))
+
+  ipcMain.handle(IPC.connectionExport, async (): Promise<string | null> => {
+    const { canceled, filePath } = await dialog.showSaveDialog({
+      title: '导出连接配置',
+      defaultPath: 'ssh-connections.json',
+      filters: [{ name: 'JSON', extensions: ['json'] }]
+    })
+    if (canceled || !filePath) return null
+    writeFileSync(filePath, store.exportAll(), 'utf8')
+    return filePath
+  })
+
+  ipcMain.handle(IPC.connectionImport, async (): Promise<number> => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      title: '导入连接配置',
+      properties: ['openFile'],
+      filters: [{ name: 'JSON', extensions: ['json'] }]
+    })
+    if (canceled || filePaths.length === 0) return 0
+    return store.importAll(readFileSync(filePaths[0], 'utf8'))
+  })
+
+  // ---------- SSH 会话 ----------
+  ipcMain.handle(IPC.sshConnect, (_event, options: SshConnectOptions): void => {
+    sessions.connect(options)
+  })
+
+  ipcMain.on(IPC.sshWrite, (_event, payload: SshWriteRequest): void => {
+    sessions.write(payload.sessionId, payload.data)
+  })
+
+  ipcMain.on(IPC.sshResize, (_event, payload: SshResizeRequest): void => {
+    sessions.resize(payload.sessionId, payload.cols, payload.rows)
+  })
+
+  ipcMain.handle(IPC.sshDisconnect, (_event, sessionId: string): void => {
+    monitor.stop(sessionId)
+    sessions.disconnect(sessionId)
+  })
+
+  ipcMain.handle(IPC.sshExec, (_event, sessionId: string, command: string): Promise<string> => {
+    return sessions.exec(sessionId, command)
+  })
+
+  // ---------- SFTP ----------
+  ipcMain.handle(IPC.sftpHome, (_event, sessionId: string) => sftp.home(sessionId))
+  ipcMain.handle(IPC.sftpList, (_event, sessionId: string, path: string) => sftp.list(sessionId, path))
+  ipcMain.handle(IPC.sftpMkdir, (_event, sessionId: string, path: string) => sftp.mkdir(sessionId, path))
+  ipcMain.handle(IPC.sftpRename, (_event, sessionId: string, from: string, to: string) =>
+    sftp.rename(sessionId, from, to)
+  )
+  ipcMain.handle(
+    IPC.sftpRemove,
+    (_event, sessionId: string, path: string, isDirectory: boolean) => sftp.remove(sessionId, path, isDirectory)
+  )
+
+  ipcMain.handle(IPC.sftpDownload, async (event, sessionId: string, remotePath: string): Promise<string | null> => {
+    const localDir = await pickDirectory(event, '选择下载目录')
+    if (!localDir) return null
+    return sftp.download(sessionId, remotePath, localDir, (p) => broadcast(IPC.sftpProgress, p))
+  })
+
+  ipcMain.handle(IPC.sftpUpload, async (event, sessionId: string, remoteDir: string): Promise<string[]> => {
+    const files = await pickFiles(event, '选择要上传的文件')
+    if (files.length === 0) return []
+
+    const uploaded: string[] = []
+    for (const file of files) {
+      uploaded.push(await sftp.upload(sessionId, file, remoteDir, (p) => broadcast(IPC.sftpProgress, p)))
+    }
+    return uploaded
+  })
+
+  // ---------- 监控 ----------
+  ipcMain.handle(IPC.monitorStart, (_event, sessionId: string): void => monitor.start(sessionId))
+  ipcMain.handle(IPC.monitorStop, (_event, sessionId: string): void => monitor.stop(sessionId))
+
+  // ---------- 窗口控制 ----------
+  ipcMain.on(IPC.windowMinimize, (event) => BrowserWindow.fromWebContents(event.sender)?.minimize())
+  ipcMain.on(IPC.windowToggleMaximize, (event) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    if (!win) return
+    if (win.isMaximized()) win.unmaximize()
+    else win.maximize()
+  })
+  ipcMain.on(IPC.windowClose, (event) => BrowserWindow.fromWebContents(event.sender)?.close())
+}
+
+/** 弹目录选择框，优先挂在当前窗口上（模态） */
+async function pickDirectory(event: IpcMainInvokeEvent, title: string): Promise<string | null> {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  const options: OpenDialogOptions = { title, properties: ['openDirectory', 'createDirectory'] }
+  const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+  return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0]
+}
+
+/** 弹文件选择框，支持多选 */
+async function pickFiles(event: IpcMainInvokeEvent, title: string): Promise<string[]> {
+  const win = BrowserWindow.fromWebContents(event.sender)
+  const options: OpenDialogOptions = { title, properties: ['openFile', 'multiSelections'] }
+  const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+  return result.canceled ? [] : result.filePaths
+}

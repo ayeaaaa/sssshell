@@ -1,0 +1,76 @@
+@import 'tailwindcss';
+@import '@xterm/xterm/css/xterm.css';
+
+/* 主题令牌：改这里就能整体换肤 */
+@theme {
+  --color-shell-950: #101216;
+  --color-shell-900: #16181d;
+  --color-shell-800: #1b1e24;
+  --color-shell-700: #22262d;
+  --color-shell-600: #2b3038;
+  --color-shell-500: #3a404a;
+  --color-shell-400: #545c68;
+  --color-shell-300: #7c8593;
+  --color-shell-200: #a9b1bd;
+
+  --color-accent-600: #2b7fc4;
+  --color-accent-500: #3d9be9;
+  --color-accent-400: #5fb0f0;
+
+  --color-ok: #4ec26a;
+  --color-warn: #e0a336;
+  --color-danger: #e0574f;
+
+  --font-mono:
+    'Cascadia Mono', 'JetBrains Mono', Consolas, 'Courier New', ui-monospace, monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background-color: var(--color-shell-900);
+  color: var(--color-shell-200);
+  font-family: 'Segoe UI', 'Microsoft YaHei', system-ui, sans-serif;
+  font-size: 13px;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* 自绘标题栏的拖动区域 */
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
+}
+
+/* 细滚动条，贴合深色主题 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-shell-500);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-shell-400);
+}
+
+/* 终端容器需要占满并允许文本选择 */
+.xterm,
+.xterm * {
+  user-select: text;
+}

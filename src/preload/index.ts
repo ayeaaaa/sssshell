@@ -1,0 +1,65 @@
+import { contextBridge, ipcRenderer } from 'electron'
+import type { IpcRendererEvent } from 'electron'
+import { IPC } from '@shared/ipc'
+import type { SshTerminalApi, Unsubscribe } from '@shared/api'
+import type {
+  ConnectionConfig,
+  MonitorSample,
+  SftpEntry,
+  SshConnectOptions,
+  SshDataEvent,
+  SshExitEvent,
+  SshStateEvent,
+  TransferProgress
+} from '@shared/types'
+
+/** 订阅主进程推送，返回取消订阅函数 */
+function subscribe<T>(channel: string, callback: (payload: T) => void): Unsubscribe {
+  const listener = (_event: IpcRendererEvent, payload: T): void => callback(payload)
+  ipcRenderer.on(channel, listener)
+  return () => ipcRenderer.off(channel, listener)
+}
+
+const api: SshTerminalApi = {
+  connections: {
+    list: () => ipcRenderer.invoke(IPC.connectionList) as Promise<ConnectionConfig[]>,
+    save: (config) => ipcRenderer.invoke(IPC.connectionSave, config) as Promise<ConnectionConfig>,
+    remove: (id) => ipcRenderer.invoke(IPC.connectionDelete, id) as Promise<boolean>,
+    exportAll: () => ipcRenderer.invoke(IPC.connectionExport) as Promise<string | null>,
+    importAll: () => ipcRenderer.invoke(IPC.connectionImport) as Promise<number>
+  },
+  ssh: {
+    connect: (options: SshConnectOptions) => ipcRenderer.invoke(IPC.sshConnect, options) as Promise<void>,
+    write: (sessionId, data) => ipcRenderer.send(IPC.sshWrite, { sessionId, data }),
+    resize: (sessionId, cols, rows) => ipcRenderer.send(IPC.sshResize, { sessionId, cols, rows }),
+    disconnect: (sessionId) => ipcRenderer.invoke(IPC.sshDisconnect, sessionId) as Promise<void>,
+    exec: (sessionId, command) => ipcRenderer.invoke(IPC.sshExec, sessionId, command) as Promise<string>,
+    onData: (callback) => subscribe<SshDataEvent>(IPC.sshData, callback),
+    onState: (callback) => subscribe<SshStateEvent>(IPC.sshState, callback),
+    onExit: (callback) => subscribe<SshExitEvent>(IPC.sshExit, callback)
+  },
+  sftp: {
+    home: (sessionId) => ipcRenderer.invoke(IPC.sftpHome, sessionId) as Promise<string>,
+    list: (sessionId, path) => ipcRenderer.invoke(IPC.sftpList, sessionId, path) as Promise<SftpEntry[]>,
+    mkdir: (sessionId, path) => ipcRenderer.invoke(IPC.sftpMkdir, sessionId, path) as Promise<void>,
+    rename: (sessionId, from, to) => ipcRenderer.invoke(IPC.sftpRename, sessionId, from, to) as Promise<void>,
+    remove: (sessionId, path, isDirectory) =>
+      ipcRenderer.invoke(IPC.sftpRemove, sessionId, path, isDirectory) as Promise<void>,
+    download: (sessionId, remotePath) =>
+      ipcRenderer.invoke(IPC.sftpDownload, sessionId, remotePath) as Promise<string | null>,
+    upload: (sessionId, remoteDir) => ipcRenderer.invoke(IPC.sftpUpload, sessionId, remoteDir) as Promise<string[]>,
+    onProgress: (callback) => subscribe<TransferProgress>(IPC.sftpProgress, callback)
+  },
+  monitor: {
+    start: (sessionId) => ipcRenderer.invoke(IPC.monitorStart, sessionId) as Promise<void>,
+    stop: (sessionId) => ipcRenderer.invoke(IPC.monitorStop, sessionId) as Promise<void>,
+    onSample: (callback) => subscribe<MonitorSample>(IPC.monitorSample, callback)
+  },
+  window: {
+    minimize: () => ipcRenderer.send(IPC.windowMinimize),
+    toggleMaximize: () => ipcRenderer.send(IPC.windowToggleMaximize),
+    close: () => ipcRenderer.send(IPC.windowClose)
+  }
+}
+
+contextBridge.exposeInMainWorld('api', api)
