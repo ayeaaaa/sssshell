@@ -26,6 +26,8 @@ export function SftpPanel({ sessionId, connected }: Props) {
   const [renameValue, setRenameValue] = useState('')
   /** 多选的文件路径 */
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  /** 是否处于批量选择模式（默认关闭，点工具栏「选择」才显示复选框） */
+  const [selectMode, setSelectMode] = useState(false)
   const [busy, setBusy] = useState(false)
   const lastClickedRef = useRef<string | null>(null)
 
@@ -96,6 +98,8 @@ export function SftpPanel({ sessionId, connected }: Props) {
 
   /** 普通点击单选，Ctrl / Cmd 点击切换，Shift 点击选一段 */
   const handleRowClick = (event: ReactMouseEvent, entry: SftpEntry): void => {
+    if (!selectMode) return
+
     const target = event.target as HTMLElement
     if (target.closest('input, [data-row-action]')) return
 
@@ -176,6 +180,21 @@ export function SftpPanel({ sessionId, connected }: Props) {
         <ToolbarButton title="上传文件" onClick={() => void run(() => window.api.sftp.upload(sessionId, path))}>
           ⇪
         </ToolbarButton>
+        <button
+          type="button"
+          title="批量选择文件"
+          onClick={() => {
+            setSelectMode((prev) => !prev)
+            setSelected(new Set())
+          }}
+          className={`h-6 shrink-0 rounded px-2 text-[11px] transition-colors ${
+            selectMode
+              ? 'bg-accent-600 text-white'
+              : 'text-shell-300 hover:bg-shell-600 hover:text-shell-200'
+          }`}
+        >
+          选择
+        </button>
         <input
           value={path}
           onChange={(event) => setPath(event.target.value)}
@@ -194,7 +213,8 @@ export function SftpPanel({ sessionId, connected }: Props) {
         </p>
       )}
 
-      <div className="flex shrink-0 items-center gap-2 border-b border-shell-700 bg-shell-800 px-3 py-1 text-[11px] text-shell-400">
+      {selectMode && (
+        <div className="flex shrink-0 items-center gap-2 border-b border-shell-700 bg-shell-800 px-3 py-1 text-[11px] text-shell-400">
         <input
           type="checkbox"
           checked={entries.length > 0 && selected.size === entries.length}
@@ -235,7 +255,8 @@ export function SftpPanel({ sessionId, connected }: Props) {
         )}
 
         <span className="ml-auto">{entries.length} 项</span>
-      </div>
+        </div>
+      )}
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         {newFolder !== null && (
@@ -270,13 +291,15 @@ export function SftpPanel({ sessionId, connected }: Props) {
               selected.has(entry.path) ? 'bg-accent-600/10' : 'hover:bg-shell-700/50'
             }`}
           >
-            <input
-              type="checkbox"
-              checked={selected.has(entry.path)}
-              onChange={() => toggleSelected(entry.path)}
-              onClick={(event) => event.stopPropagation()}
-              className="shrink-0 accent-accent-500"
-            />
+            {selectMode && (
+              <input
+                type="checkbox"
+                checked={selected.has(entry.path)}
+                onChange={() => toggleSelected(entry.path)}
+                onClick={(event) => event.stopPropagation()}
+                className="shrink-0 accent-accent-500"
+              />
+            )}
             {renaming === entry.path ? (
               <input
                 autoFocus
@@ -313,7 +336,7 @@ export function SftpPanel({ sessionId, connected }: Props) {
 
             <div
               data-row-action
-              className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100"
+              className="pointer-events-none flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:pointer-events-auto group-hover:opacity-100"
             >
               {!entry.isDirectory && isTextLike(entry.name) && (
                 <IconButton title="编辑" onClick={() => openEditor(sessionId, entry.path)}>
