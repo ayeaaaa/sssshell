@@ -28,6 +28,7 @@ export const IPC = {
   /** 下载管理器 */
   downloadList: 'download:list',
   downloadAdd: 'download:add',
+  downloadAddMany: 'download:add-many',
   downloadPause: 'download:pause',
   downloadResume: 'download:resume',
   downloadCancel: 'download:cancel',

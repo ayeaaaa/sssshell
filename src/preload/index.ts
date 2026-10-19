@@ -75,6 +75,8 @@ const api: SshTerminalApi = {
     list: () => ipcRenderer.invoke(IPC.downloadList) as Promise<DownloadTask[]>,
     add: (sessionId, remotePath) =>
       ipcRenderer.invoke(IPC.downloadAdd, sessionId, remotePath) as Promise<DownloadTask[]>,
+    addMany: (sessionId, remotePaths) =>
+      ipcRenderer.invoke(IPC.downloadAddMany, sessionId, remotePaths) as Promise<DownloadTask[]>,
     pause: (id) => ipcRenderer.invoke(IPC.downloadPause, id) as Promise<void>,
     resume: (id) => ipcRenderer.invoke(IPC.downloadResume, id) as Promise<void>,
     cancel: (id) => ipcRenderer.invoke(IPC.downloadCancel, id) as Promise<void>,

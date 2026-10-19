@@ -136,40 +136,65 @@ export function registerIpc({
   // ---------- 下载管理器 ----------
   ipcMain.handle(IPC.downloadList, (): DownloadTask[] => downloads.list())
 
+  /** 把一个远端路径（文件或目录）加入下载队列 */
+  const enqueueDownload = async (
+    sessionId: string,
+    remotePath: string,
+    localDir: string
+  ): Promise<DownloadTask[]> => {
+    const session = sessions.get(sessionId)
+    if (!session) throw new Error('会话不存在或已断开')
+    const sftpWrapper = await session.getSftp()
+    const stats = await remoteStat(sftpWrapper, remotePath)
+
+    if (stats.isDirectory()) {
+      const files = await sftp.walk(sessionId, remotePath)
+      if (files.length === 0) return []
+      return downloads.addDirectory({
+        sessionId,
+        sessionLabel: session.label,
+        remotePath,
+        localDir,
+        files
+      })
+    }
+
+    return [
+      downloads.add({
+        sessionId,
+        sessionLabel: session.label,
+        remotePath,
+        localDir,
+        size: stats.size
+      })
+    ]
+  }
+
+  /** E2E 测试时用环境变量指定下载目录，跳过系统目录选择框 */
+  const resolveDownloadDir = async (event: IpcMainInvokeEvent): Promise<string | null> => {
+    return process.env['SSH_TERMINAL_DOWNLOAD_DIR'] ?? (await pickDirectory(event, '选择下载目录'))
+  }
+
   ipcMain.handle(
     IPC.downloadAdd,
     async (event, sessionId: string, remotePath: string): Promise<DownloadTask[]> => {
-      // E2E 测试时用环境变量指定下载目录，跳过系统目录选择框
-      const localDir =
-        process.env['SSH_TERMINAL_DOWNLOAD_DIR'] ?? (await pickDirectory(event, '选择下载目录'))
+      const localDir = await resolveDownloadDir(event)
+      if (!localDir) return []
+      return enqueueDownload(sessionId, remotePath, localDir)
+    }
+  )
+
+  ipcMain.handle(
+    IPC.downloadAddMany,
+    async (event, sessionId: string, remotePaths: string[]): Promise<DownloadTask[]> => {
+      const localDir = await resolveDownloadDir(event)
       if (!localDir) return []
 
-      const session = sessions.get(sessionId)
-      if (!session) throw new Error('会话不存在或已断开')
-      const sftpWrapper = await session.getSftp()
-      const stats = await remoteStat(sftpWrapper, remotePath)
-
-      if (stats.isDirectory()) {
-        const files = await sftp.walk(sessionId, remotePath)
-        if (files.length === 0) return []
-        return downloads.addDirectory({
-          sessionId,
-          sessionLabel: session.label,
-          remotePath,
-          localDir,
-          files
-        })
+      const tasks: DownloadTask[] = []
+      for (const remotePath of remotePaths) {
+        tasks.push(...(await enqueueDownload(sessionId, remotePath, localDir)))
       }
-
-      return [
-        downloads.add({
-          sessionId,
-          sessionLabel: session.label,
-          remotePath,
-          localDir,
-          size: stats.size
-        })
-      ]
+      return tasks
     }
   )
 

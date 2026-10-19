@@ -76,6 +76,8 @@ export interface SshTerminalApi {
     list(): Promise<DownloadTask[]>
     /** 加入下载队列（目录会展开成多个任务）；不传 localDir 时弹出目录选择框，取消返回空数组 */
     add(sessionId: string, remotePath: string, localDir?: string): Promise<DownloadTask[]>
+    /** 批量加入下载队列，只弹一次目录选择框 */
+    addMany(sessionId: string, remotePaths: string[]): Promise<DownloadTask[]>
     pause(id: string): Promise<void>
     resume(id: string): Promise<void>
     cancel(id: string): Promise<void>
