@@ -42,6 +42,11 @@ export class SshSession {
     return this.state
   }
 
+  /** 展示用：user@host */
+  get label(): string {
+    return `${this.options.username}@${this.options.host}`
+  }
+
   connect(): void {
     this.client
       .on('ready', () => this.openShell())

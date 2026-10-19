@@ -25,7 +25,16 @@ src/
 │  ├─ ssh/
 │  │  ├─ SshSession.ts      单个会话：连接、shell、exec、SFTP 复用
 │  │  └─ SessionManager.ts  活跃会话表
-│  ├─ sftp/SftpService.ts   目录浏览、增删改、上传下载
+│  ├─ sftp/
+│  │  ├─ SftpService.ts      目录浏览、增删改、上传
+│  │  └─ remoteFs.ts         Promise 化的 SFTP 基础操作
+│  ├─ download/
+│  │  ├─ DownloadManager.ts  下载队列、断点续传、历史记录
+│  │  ├─ DownloadQueue.ts    并发调度（最多 2 个同时下载）
+│  │  └─ pathUtils.ts        同名文件自动加 (1) 后缀
+│  ├─ editor/
+│  │  ├─ EditorService.ts    远程文本读写、mtime 冲突检测、原子替换
+│  │  └─ binary.ts           二进制内容判定
 │  ├─ monitor/MonitorService.ts  解析 /proc 得到 CPU / 内存 / 磁盘 / 网络
 │  └─ store/
 │     ├─ connectionStore.ts  连接 + 标签持久化（userData/connections.json）
@@ -38,6 +47,8 @@ src/
 │  │  ├─ layout/            标题栏、左侧连接侧栏、底部命令抽屉、状态栏
 │  │  ├─ connections/       连接树、新建/编辑连接弹窗、标签管理弹窗
 │  │  ├─ commands/          快捷命令卡片、命令历史、新建/编辑命令弹窗
+│  │  ├─ downloads/         下载管理器面板
+│  │  ├─ editor/            在线编辑器（CodeMirror）
 │  │  ├─ terminal/          xterm 终端、标签页、实例注册表、配色
 │  │  ├─ monitor/           服务器监控面板、迷你折线图
 │  │  └─ sftp/              文件管理面板
@@ -54,6 +65,7 @@ src/
 ```bash
 npm install
 npm run dev          # 开发模式，改代码热更新
+npm test             # 单元测试（vitest）
 npm run typecheck    # 主进程 + 渲染进程类型检查
 npm run build        # 类型检查 + 打包到 out/
 npm run pack:win     # 出 Windows 安装包到 release/
@@ -70,6 +82,8 @@ Node 24 / npm 11 下验证通过。
 - **标签页操作**：拖拽排序、右键菜单（重命名 / 关闭 / 关闭其他 / 关闭右侧 / 关闭全部）、双击重命名、中键关闭、`Ctrl+Tab` 循环切换、`Ctrl+1..9` 跳转
 - **快捷命令**：终端下方的命令抽屉（默认收起，`Ctrl+`` 展开），卡片式布局，点一下发到当前终端；支持搜索、新建/编辑/删除、`仅粘贴`（只填入不回车）；首次使用预置 6 条常用命令
 - **命令历史**：自动记录终端里执行的命令，带主机、时间和来源；可搜索、点击重新执行、单条删除、一键清空；不回显的输入（如 sudo 密码）不会入历史；最多保留 500 条
+- **下载管理器**：底部「下载」页签，队列最多同时 2 个任务；支持暂停 / 继续（断点续传）、取消、重试、打开所在文件夹、清空记录；同名文件自动加 `(1)`；关掉应用后已完成记录保留、未完成标记为已暂停
+- **在线编辑**：文件列表里文本文件可直接打开编辑，CodeMirror 6 带行号、语法高亮、搜索；`Ctrl+S` 保存；保存走「临时文件 + 原子替换」，带 mtime 冲突检测；超过 2 MB 或二进制文件会拒绝
 - 服务器监控：CPU、内存、交换分区、磁盘、网速、负载、运行时长、进程数，带历史曲线
 - SFTP 文件管理：浏览、进入目录、新建文件夹、重命名、删除（递归）、上传、下载、传输进度
 - 自绘标题栏（无边框窗口）、深色主题
@@ -91,9 +105,11 @@ Node 24 / npm 11 下验证通过。
 - 监控只支持 Linux 目标机（依赖 `/proc`），Windows / macOS 目标机待补
 - 私钥路径目前是手输，还没做文件选择器
 - 上传只支持文件，暂不支持整个目录递归上传
+- 下载同样只支持单个文件，不支持目录递归和多选批量
+- 在线编辑按 UTF-8 读写，GBK 等其它编码会乱码；单文件上限 2 MB
 - 命令历史靠解析键盘输入得到：Tab 补全的内容拿不到，用方向键翻旧命令时可能漏记；vim/top 这类全屏程序里的按键会被自动忽略
 - 没设置 CSP，Electron 会在开发模式提示安全警告；打包前应补上严格的 `Content-Security-Policy`
-- 端口转发、SFTP 拖拽上传、命令快捷面板、批量命令下发等 FinalShell 特性还没做
+- 端口转发、SFTP 拖拽上传、目录递归下载、批量命令下发等 FinalShell 特性还没做
 
 ## 约定
 

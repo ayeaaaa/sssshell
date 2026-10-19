@@ -163,3 +163,49 @@ export interface CommandRecord {
   username: string
   source: 'terminal' | 'quick'
 }
+
+export type DownloadStatus = 'queued' | 'running' | 'paused' | 'done' | 'error' | 'canceled'
+
+/** 下载管理器里的一个任务 */
+export interface DownloadTask {
+  id: string
+  /** 发起下载的 SSH 会话，重连后旧任务无法续传 */
+  sessionId: string
+  /** 展示用：user@host */
+  sessionLabel: string
+  remotePath: string
+  localPath: string
+  name: string
+  size: number
+  transferred: number
+  /** 字节/秒，仅 running 时有意义 */
+  speed: number
+  status: DownloadStatus
+  error?: string
+  createdAt: number
+  updatedAt: number
+}
+
+/** 在线编辑：读取远程文本文件 */
+export interface RemoteFileContent {
+  path: string
+  content: string
+  size: number
+  /** Unix 时间戳（秒） */
+  mtime: number
+  mode: number
+}
+
+export interface RemoteSaveRequest {
+  sessionId: string
+  path: string
+  content: string
+  /** 打开文件时记录的 mtime，用于冲突检测 */
+  expectedMtime: number
+  /** true = 忽略冲突直接覆盖 */
+  force?: boolean
+}
+
+export type RemoteSaveResult =
+  | { ok: true; mtime: number }
+  | { ok: false; reason: 'conflict' | 'error'; message?: string; mtime?: number }

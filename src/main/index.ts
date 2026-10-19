@@ -6,6 +6,8 @@ import { SessionManager } from './ssh/SessionManager'
 import { ConnectionStore } from './store/connectionStore'
 import { CommandStore } from './store/commandStore'
 import { HistoryStore } from './store/historyStore'
+import { DownloadManager } from './download/DownloadManager'
+import { EditorService } from './editor/EditorService'
 import { SftpService } from './sftp/SftpService'
 import { MonitorService } from './monitor/MonitorService'
 import { registerIpc } from './ipc'
@@ -24,6 +26,8 @@ const sessions = new SessionManager({
 })
 const sftp = new SftpService(sessions)
 const monitor = new MonitorService(sessions, (sample) => broadcast(IPC.monitorSample, sample))
+const downloads = new DownloadManager(sessions, (task) => broadcast(IPC.downloadUpdated, task))
+const editor = new EditorService(sessions)
 
 function createWindow(): void {
   mainWindow = new BrowserWindow({
@@ -65,7 +69,7 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   app.setAppUserModelId('com.example.sshterminal')
-  registerIpc({ store, commands, history, sessions, sftp, monitor })
+  registerIpc({ store, commands, history, sessions, sftp, monitor, downloads, editor })
   createWindow()
 
   app.on('activate', () => {
@@ -79,5 +83,6 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   monitor.stopAll()
+  downloads.shutdown()
   sessions.disconnectAll()
 })

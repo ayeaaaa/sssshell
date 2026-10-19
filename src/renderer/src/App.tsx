@@ -12,6 +12,7 @@ import { TagManagerDialog } from './components/connections/TagManagerDialog'
 import { MonitorPanel } from './components/monitor/MonitorPanel'
 import { SftpPanel } from './components/sftp/SftpPanel'
 import { BottomPanel } from './components/layout/BottomPanel'
+import { EditorDialog } from './components/editor/EditorDialog'
 
 export default function App() {
   const tabs = useAppStore((s) => s.tabs)
@@ -22,6 +23,9 @@ export default function App() {
   const loadCommands = useAppStore((s) => s.loadCommands)
   const loadHistory = useAppStore((s) => s.loadHistory)
   const appendHistory = useAppStore((s) => s.appendHistory)
+  const loadDownloads = useAppStore((s) => s.loadDownloads)
+  const upsertDownload = useAppStore((s) => s.upsertDownload)
+  const removeDownload = useAppStore((s) => s.removeDownload)
   const bottomPanelOpen = useAppStore((s) => s.bottomPanelOpen)
   const updateTabState = useAppStore((s) => s.updateTabState)
   const pushSample = useAppStore((s) => s.pushSample)
@@ -39,7 +43,8 @@ export default function App() {
     void loadTags()
     void loadCommands()
     void loadHistory()
-  }, [loadConnections, loadTags, loadCommands, loadHistory])
+    void loadDownloads()
+  }, [loadConnections, loadTags, loadCommands, loadHistory, loadDownloads])
 
   // Ctrl+Tab / Ctrl+Shift+Tab 切换标签，Ctrl+1..9 跳到第 N 个
   useEffect(() => {
@@ -101,6 +106,8 @@ export default function App() {
 
     const offSample = window.api.monitor.onSample(pushSample)
     const offHistory = window.api.history.onAdded(appendHistory)
+    const offDownload = window.api.downloads.onUpdated(upsertDownload)
+    const offDownloadRemoved = window.api.downloads.onRemoved(removeDownload)
 
     return () => {
       offData()
@@ -108,8 +115,10 @@ export default function App() {
       offExit()
       offSample()
       offHistory()
+      offDownload()
+      offDownloadRemoved()
     }
-  }, [updateTabState, pushSample, appendHistory])
+  }, [updateTabState, pushSample, appendHistory, upsertDownload, removeDownload])
 
   return (
     <div className="flex h-full flex-col">
@@ -155,6 +164,8 @@ export default function App() {
       )}
 
       {tagManagerOpen && <TagManagerDialog onClose={() => setTagManagerOpen(false)} />}
+
+      <EditorDialog />
     </div>
   )
 }

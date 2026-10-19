@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type {
   CommandHistoryEntry,
   ConnectionConfig,
+  DownloadTask,
   MonitorSample,
   QuickCommand,
   SshSessionState,
@@ -21,7 +22,7 @@ export interface TerminalTab {
 }
 
 export type RightPanel = 'monitor' | 'sftp'
-export type BottomPanelTab = 'commands' | 'history'
+export type BottomPanelTab = 'commands' | 'history' | 'downloads'
 export type DropPosition = 'before' | 'after'
 
 /** 监控曲线保留的采样点数 */
@@ -41,6 +42,9 @@ interface AppState {
   bottomPanelOpen: boolean
   bottomPanelTab: BottomPanelTab
   history: CommandHistoryEntry[]
+  downloads: DownloadTask[]
+  /** 正在在线编辑的文件，null 表示编辑器没开 */
+  editingFile: { sessionId: string; path: string } | null
   /** sessionId -> 最近若干次采样 */
   samples: Record<string, MonitorSample[]>
 
@@ -65,6 +69,13 @@ interface AppState {
   removeHistory: (id: string) => Promise<void>
   clearHistory: () => Promise<void>
   appendHistory: (entry: CommandHistoryEntry) => void
+
+  loadDownloads: () => Promise<void>
+  upsertDownload: (task: DownloadTask) => void
+  removeDownload: (id: string) => void
+
+  openEditor: (sessionId: string, path: string) => void
+  closeEditor: () => void
 
   openConnection: (config: ConnectionConfig) => Promise<void>
   closeTab: (id: string) => Promise<void>
@@ -124,6 +135,8 @@ export const useAppStore = create<AppState>((set, get) => {
     bottomPanelOpen: false,
     bottomPanelTab: 'commands',
     history: [],
+    downloads: [],
+    editingFile: null,
     samples: {},
 
     async loadConnections() {
@@ -210,6 +223,31 @@ export const useAppStore = create<AppState>((set, get) => {
     appendHistory(entry) {
       // 主进程对连续重复命令会复用同一条记录，这里按 id 去重后置顶
       set({ history: [entry, ...get().history.filter((item) => item.id !== entry.id)] })
+    },
+
+    async loadDownloads() {
+      set({ downloads: await window.api.downloads.list() })
+    },
+
+    upsertDownload(task) {
+      const exists = get().downloads.some((item) => item.id === task.id)
+      set({
+        downloads: exists
+          ? get().downloads.map((item) => (item.id === task.id ? task : item))
+          : [task, ...get().downloads]
+      })
+    },
+
+    removeDownload(id) {
+      set({ downloads: get().downloads.filter((item) => item.id !== id) })
+    },
+
+    openEditor(sessionId, path) {
+      set({ editingFile: { sessionId, path } })
+    },
+
+    closeEditor() {
+      set({ editingFile: null })
     },
 
     async openConnection(config) {

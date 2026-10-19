@@ -25,6 +25,23 @@ export const IPC = {
   historyClear: 'history:clear',
   historyAdded: 'history:added',
 
+  /** 下载管理器 */
+  downloadList: 'download:list',
+  downloadAdd: 'download:add',
+  downloadPause: 'download:pause',
+  downloadResume: 'download:resume',
+  downloadCancel: 'download:cancel',
+  downloadRetry: 'download:retry',
+  downloadRemove: 'download:remove',
+  downloadClearFinished: 'download:clear-finished',
+  downloadOpenFolder: 'download:open-folder',
+  downloadUpdated: 'download:updated',
+  downloadRemoved: 'download:removed',
+
+  /** 在线编辑 */
+  editorRead: 'editor:read',
+  editorSave: 'editor:save',
+
   /** SSH 会话 */
   sshConnect: 'ssh:connect',
   sshWrite: 'ssh:write',

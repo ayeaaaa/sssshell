@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { SftpEntry, TransferProgress } from '@shared/types'
+import { useAppStore } from '@renderer/store/useAppStore'
 import { formatBytes, formatDateTime } from '@renderer/utils/format'
+import { isTextLike } from '@renderer/utils/text'
 
 interface Props {
   sessionId: string
@@ -10,6 +12,8 @@ interface Props {
 
 /** 文件管理面板：浏览 / 上传 / 下载 / 重命名 / 删除 */
 export function SftpPanel({ sessionId, connected }: Props) {
+  const openEditor = useAppStore((s) => s.openEditor)
+  const openBottomPanel = useAppStore((s) => s.openBottomPanel)
   const [path, setPath] = useState('')
   const [entries, setEntries] = useState<SftpEntry[]>([])
   const [loading, setLoading] = useState(false)
@@ -177,12 +181,23 @@ export function SftpPanel({ sessionId, connected }: Props) {
 
             <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
               {!entry.isDirectory && (
-                <IconButton
-                  title="下载"
-                  onClick={() => void run(() => window.api.sftp.download(sessionId, entry.path))}
-                >
-                  ⇩
-                </IconButton>
+                <>
+                  {isTextLike(entry.name) && (
+                    <IconButton title="编辑" onClick={() => openEditor(sessionId, entry.path)}>
+                      ✎
+                    </IconButton>
+                  )}
+                  <IconButton
+                    title="下载"
+                    onClick={() => {
+                      void window.api.downloads.add(sessionId, entry.path).then((task) => {
+                        if (task) openBottomPanel('downloads')
+                      })
+                    }}
+                  >
+                    ⇩
+                  </IconButton>
+                </>
               )}
               <IconButton
                 title="重命名"

@@ -5,8 +5,12 @@ import type { SshTerminalApi, Unsubscribe } from '@shared/api'
 import type {
   CommandHistoryEntry,
   ConnectionConfig,
+  DownloadTask,
   MonitorSample,
   QuickCommand,
+  RemoteFileContent,
+  RemoteSaveRequest,
+  RemoteSaveResult,
   SftpEntry,
   SshConnectOptions,
   SshDataEvent,
@@ -64,10 +68,26 @@ const api: SshTerminalApi = {
     rename: (sessionId, from, to) => ipcRenderer.invoke(IPC.sftpRename, sessionId, from, to) as Promise<void>,
     remove: (sessionId, path, isDirectory) =>
       ipcRenderer.invoke(IPC.sftpRemove, sessionId, path, isDirectory) as Promise<void>,
-    download: (sessionId, remotePath) =>
-      ipcRenderer.invoke(IPC.sftpDownload, sessionId, remotePath) as Promise<string | null>,
     upload: (sessionId, remoteDir) => ipcRenderer.invoke(IPC.sftpUpload, sessionId, remoteDir) as Promise<string[]>,
     onProgress: (callback) => subscribe<TransferProgress>(IPC.sftpProgress, callback)
+  },
+  downloads: {
+    list: () => ipcRenderer.invoke(IPC.downloadList) as Promise<DownloadTask[]>,
+    add: (sessionId, remotePath) =>
+      ipcRenderer.invoke(IPC.downloadAdd, sessionId, remotePath) as Promise<DownloadTask | null>,
+    pause: (id) => ipcRenderer.invoke(IPC.downloadPause, id) as Promise<void>,
+    resume: (id) => ipcRenderer.invoke(IPC.downloadResume, id) as Promise<void>,
+    cancel: (id) => ipcRenderer.invoke(IPC.downloadCancel, id) as Promise<void>,
+    retry: (id) => ipcRenderer.invoke(IPC.downloadRetry, id) as Promise<void>,
+    remove: (id) => ipcRenderer.invoke(IPC.downloadRemove, id) as Promise<boolean>,
+    clearFinished: () => ipcRenderer.invoke(IPC.downloadClearFinished) as Promise<boolean>,
+    openFolder: (id) => ipcRenderer.invoke(IPC.downloadOpenFolder, id) as Promise<void>,
+    onUpdated: (callback) => subscribe<DownloadTask>(IPC.downloadUpdated, callback),
+    onRemoved: (callback) => subscribe<string>(IPC.downloadRemoved, callback)
+  },
+  editor: {
+    read: (sessionId, path) => ipcRenderer.invoke(IPC.editorRead, sessionId, path) as Promise<RemoteFileContent>,
+    save: (request: RemoteSaveRequest) => ipcRenderer.invoke(IPC.editorSave, request) as Promise<RemoteSaveResult>
   },
   monitor: {
     start: (sessionId) => ipcRenderer.invoke(IPC.monitorStart, sessionId) as Promise<void>,

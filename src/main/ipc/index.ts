@@ -2,10 +2,13 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { BrowserWindow, dialog, ipcMain } from 'electron'
 import type { IpcMainInvokeEvent, OpenDialogOptions } from 'electron'
 import { IPC } from '@shared/ipc'
-import type { CommandHistoryEntry, ConnectionConfig, QuickCommand, SshConnectOptions, SshResizeRequest, SshWriteRequest, Tag } from '@shared/types'
+import type { CommandHistoryEntry, ConnectionConfig, DownloadTask, QuickCommand, RemoteSaveRequest, SshConnectOptions, SshResizeRequest, SshWriteRequest, Tag } from '@shared/types'
 import type { ConnectionStore } from '../store/connectionStore'
 import type { CommandStore } from '../store/commandStore'
 import type { HistoryStore } from '../store/historyStore'
+import type { DownloadManager } from '../download/DownloadManager'
+import type { EditorService } from '../editor/EditorService'
+import { remoteStat } from '../sftp/remoteFs'
 import type { SessionManager } from '../ssh/SessionManager'
 import type { SftpService } from '../sftp/SftpService'
 import type { MonitorService } from '../monitor/MonitorService'
@@ -18,9 +21,20 @@ export interface IpcDeps {
   sessions: SessionManager
   sftp: SftpService
   monitor: MonitorService
+  downloads: DownloadManager
+  editor: EditorService
 }
 
-export function registerIpc({ store, commands, history, sessions, sftp, monitor }: IpcDeps): void {
+export function registerIpc({
+  store,
+  commands,
+  history,
+  sessions,
+  sftp,
+  monitor,
+  downloads,
+  editor
+}: IpcDeps): void {
   // ---------- 连接配置 ----------
   ipcMain.handle(IPC.connectionList, (): ConnectionConfig[] => store.list())
 
@@ -108,12 +122,6 @@ export function registerIpc({ store, commands, history, sessions, sftp, monitor 
     (_event, sessionId: string, path: string, isDirectory: boolean) => sftp.remove(sessionId, path, isDirectory)
   )
 
-  ipcMain.handle(IPC.sftpDownload, async (event, sessionId: string, remotePath: string): Promise<string | null> => {
-    const localDir = await pickDirectory(event, '选择下载目录')
-    if (!localDir) return null
-    return sftp.download(sessionId, remotePath, localDir, (p) => broadcast(IPC.sftpProgress, p))
-  })
-
   ipcMain.handle(IPC.sftpUpload, async (event, sessionId: string, remoteDir: string): Promise<string[]> => {
     const files = await pickFiles(event, '选择要上传的文件')
     if (files.length === 0) return []
@@ -124,6 +132,56 @@ export function registerIpc({ store, commands, history, sessions, sftp, monitor 
     }
     return uploaded
   })
+
+  // ---------- 下载管理器 ----------
+  ipcMain.handle(IPC.downloadList, (): DownloadTask[] => downloads.list())
+
+  ipcMain.handle(
+    IPC.downloadAdd,
+    async (event, sessionId: string, remotePath: string): Promise<DownloadTask | null> => {
+      // E2E 测试时用环境变量指定下载目录，跳过系统目录选择框
+      const localDir =
+        process.env['SSH_TERMINAL_DOWNLOAD_DIR'] ?? (await pickDirectory(event, '选择下载目录'))
+      if (!localDir) return null
+
+      const session = sessions.get(sessionId)
+      if (!session) throw new Error('会话不存在或已断开')
+      const sftpWrapper = await session.getSftp()
+      const stats = await remoteStat(sftpWrapper, remotePath)
+
+      return downloads.add({
+        sessionId,
+        sessionLabel: session.label,
+        remotePath,
+        localDir,
+        size: stats.size
+      })
+    }
+  )
+
+  ipcMain.handle(IPC.downloadPause, (_event, id: string): void => downloads.pause(id))
+  ipcMain.handle(IPC.downloadResume, (_event, id: string): void => downloads.resume(id))
+  ipcMain.handle(IPC.downloadCancel, (_event, id: string): void => downloads.cancel(id))
+  ipcMain.handle(IPC.downloadRetry, (_event, id: string): void => downloads.retry(id))
+
+  ipcMain.handle(IPC.downloadRemove, (_event, id: string): boolean => {
+    const removed = downloads.remove(id)
+    if (removed) broadcast(IPC.downloadRemoved, id)
+    return removed
+  })
+
+  ipcMain.handle(IPC.downloadClearFinished, (): boolean => {
+    const removed = downloads.clearFinished()
+    for (const id of removed) broadcast(IPC.downloadRemoved, id)
+    return removed.length > 0
+  })
+
+  ipcMain.handle(IPC.downloadOpenFolder, (_event, id: string): void => downloads.openFolder(id))
+
+  // ---------- 在线编辑 ----------
+  ipcMain.handle(IPC.editorRead, (_event, sessionId: string, path: string) => editor.read(sessionId, path))
+
+  ipcMain.handle(IPC.editorSave, (_event, request: RemoteSaveRequest) => editor.save(request))
 
   // ---------- 监控 ----------
   ipcMain.handle(IPC.monitorStart, (_event, sessionId: string): void => monitor.start(sessionId))

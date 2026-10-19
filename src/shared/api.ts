@@ -5,8 +5,12 @@
 import type {
   CommandHistoryEntry,
   ConnectionConfig,
+  DownloadTask,
   MonitorSample,
   QuickCommand,
+  RemoteFileContent,
+  RemoteSaveRequest,
+  RemoteSaveResult,
   SftpEntry,
   SshConnectOptions,
   SshDataEvent,
@@ -64,11 +68,28 @@ export interface SshTerminalApi {
     mkdir(sessionId: string, path: string): Promise<void>
     rename(sessionId: string, from: string, to: string): Promise<void>
     remove(sessionId: string, path: string, isDirectory: boolean): Promise<void>
-    /** 弹出目录选择框，返回本地保存路径；取消返回 null */
-    download(sessionId: string, remotePath: string): Promise<string | null>
-    /** 弹出文件选择框，返回已上传的远程路径列表 */
+    /** 弹出目录选择框，返回已上传的远程路径列表 */
     upload(sessionId: string, remoteDir: string): Promise<string[]>
     onProgress(callback: (progress: TransferProgress) => void): Unsubscribe
+  }
+  downloads: {
+    list(): Promise<DownloadTask[]>
+    /** 加入下载队列；不传 localDir 时弹出目录选择框，取消返回 null */
+    add(sessionId: string, remotePath: string, localDir?: string): Promise<DownloadTask | null>
+    pause(id: string): Promise<void>
+    resume(id: string): Promise<void>
+    cancel(id: string): Promise<void>
+    retry(id: string): Promise<void>
+    remove(id: string): Promise<boolean>
+    /** 清掉已完成 / 已取消的记录，返回是否真的删了东西 */
+    clearFinished(): Promise<boolean>
+    openFolder(id: string): Promise<void>
+    onUpdated(callback: (task: DownloadTask) => void): Unsubscribe
+    onRemoved(callback: (id: string) => void): Unsubscribe
+  }
+  editor: {
+    read(sessionId: string, path: string): Promise<RemoteFileContent>
+    save(request: RemoteSaveRequest): Promise<RemoteSaveResult>
   }
   monitor: {
     start(sessionId: string): Promise<void>
