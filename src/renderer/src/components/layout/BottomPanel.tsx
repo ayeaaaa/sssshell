@@ -3,6 +3,7 @@ import type { BottomPanelTab } from '@renderer/store/useAppStore'
 import { QuickCommandPanel } from '../commands/QuickCommandPanel'
 import { CommandHistoryPanel } from '../commands/CommandHistoryPanel'
 import { DownloadPanel } from '../downloads/DownloadPanel'
+import { BatchCommandPanel } from '../commands/BatchCommandPanel'
 
 interface Props {
   sessionId: string
@@ -15,6 +16,9 @@ export function BottomPanel({ sessionId, connected }: Props) {
   const commandsCount = useAppStore((s) => s.commands.length)
   const historyCount = useAppStore((s) => s.history.length)
   const downloadsCount = useAppStore((s) => s.downloads.length)
+  const readyTabs = useAppStore(
+    (s) => s.tabs.filter((tab) => tab.state === 'ready').length
+  )
   const activeDownloads = useAppStore(
     (s) => s.downloads.filter((task) => task.status === 'running' || task.status === 'queued').length
   )
@@ -24,6 +28,7 @@ export function BottomPanel({ sessionId, connected }: Props) {
   const tabs: Array<[BottomPanelTab, string, number]> = [
     ['commands', '快捷命令', commandsCount],
     ['history', '命令历史', historyCount],
+    ['batch', '批量命令', readyTabs],
     ['downloads', '下载', downloadsCount]
   ]
 
@@ -64,6 +69,8 @@ export function BottomPanel({ sessionId, connected }: Props) {
           <QuickCommandPanel sessionId={sessionId} connected={connected} />
         ) : tab === 'history' ? (
           <CommandHistoryPanel sessionId={sessionId} connected={connected} />
+        ) : tab === 'batch' ? (
+          <BatchCommandPanel />
         ) : (
           <DownloadPanel />
         )}

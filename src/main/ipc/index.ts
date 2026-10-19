@@ -138,24 +138,38 @@ export function registerIpc({
 
   ipcMain.handle(
     IPC.downloadAdd,
-    async (event, sessionId: string, remotePath: string): Promise<DownloadTask | null> => {
+    async (event, sessionId: string, remotePath: string): Promise<DownloadTask[]> => {
       // E2E 测试时用环境变量指定下载目录，跳过系统目录选择框
       const localDir =
         process.env['SSH_TERMINAL_DOWNLOAD_DIR'] ?? (await pickDirectory(event, '选择下载目录'))
-      if (!localDir) return null
+      if (!localDir) return []
 
       const session = sessions.get(sessionId)
       if (!session) throw new Error('会话不存在或已断开')
       const sftpWrapper = await session.getSftp()
       const stats = await remoteStat(sftpWrapper, remotePath)
 
-      return downloads.add({
-        sessionId,
-        sessionLabel: session.label,
-        remotePath,
-        localDir,
-        size: stats.size
-      })
+      if (stats.isDirectory()) {
+        const files = await sftp.walk(sessionId, remotePath)
+        if (files.length === 0) return []
+        return downloads.addDirectory({
+          sessionId,
+          sessionLabel: session.label,
+          remotePath,
+          localDir,
+          files
+        })
+      }
+
+      return [
+        downloads.add({
+          sessionId,
+          sessionLabel: session.label,
+          remotePath,
+          localDir,
+          size: stats.size
+        })
+      ]
     }
   )
 

@@ -81,6 +81,32 @@ export class DownloadManager {
     return task
   }
 
+  /** 目录下载：建好本地根目录，把目录里每个文件都排进队列 */
+  addDirectory(input: {
+    sessionId: string
+    sessionLabel: string
+    remotePath: string
+    localDir: string
+    files: Array<{ remotePath: string; relativePath: string; size: number }>
+  }): DownloadTask[] {
+    if (input.files.length > 1000) {
+      throw new Error(`目录里有 ${input.files.length} 个文件，超过单次 1000 个的限制`)
+    }
+
+    const root = uniquePath(input.localDir, basename(input.remotePath), existsSync)
+    mkdirSync(root, { recursive: true })
+
+    return input.files.map((file) =>
+      this.add({
+        sessionId: input.sessionId,
+        sessionLabel: input.sessionLabel,
+        remotePath: file.remotePath,
+        localDir: join(root, dirname(file.relativePath)),
+        size: file.size
+      })
+    )
+  }
+
   pause(id: string): void {
     const task = this.tasks.get(id)
     if (!task) return

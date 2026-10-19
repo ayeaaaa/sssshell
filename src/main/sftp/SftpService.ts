@@ -60,6 +60,39 @@ export class SftpService {
     return entries
   }
 
+  /** 递归列出一个目录下的所有文件（用于目录下载） */
+  async walk(
+    sessionId: string,
+    remotePath: string
+  ): Promise<Array<{ remotePath: string; relativePath: string; size: number }>> {
+    const sftp = await this.sftp(sessionId)
+    const results: Array<{ remotePath: string; relativePath: string; size: number }> = []
+
+    const visit = async (dir: string, prefix: string): Promise<void> => {
+      const entries = await new Promise<Array<{ filename: string; attrs: Stats }>>((resolve, reject) => {
+        sftp.readdir(dir, (err, list) => (err ? reject(err) : resolve(list)))
+      })
+
+      for (const entry of entries) {
+        if (entry.filename === '.' || entry.filename === '..') continue
+
+        const full = posix.join(dir, entry.filename)
+        const relative = prefix ? posix.join(prefix, entry.filename) : entry.filename
+        const type = entry.attrs.mode & S_IFMT
+
+        // 符号链接按文件处理，避免目录软链造成递归死循环
+        if (type === S_IFDIR) {
+          await visit(full, relative)
+        } else {
+          results.push({ remotePath: full, relativePath: relative, size: entry.attrs.size })
+        }
+      }
+    }
+
+    await visit(remotePath, '')
+    return results
+  }
+
   async mkdir(sessionId: string, path: string): Promise<void> {
     const sftp = await this.sftp(sessionId)
     await new Promise<void>((resolve, reject) => {

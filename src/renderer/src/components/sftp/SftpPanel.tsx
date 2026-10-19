@@ -180,25 +180,21 @@ export function SftpPanel({ sessionId, connected }: Props) {
             </span>
 
             <div className="flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-              {!entry.isDirectory && (
-                <>
-                  {isTextLike(entry.name) && (
-                    <IconButton title="编辑" onClick={() => openEditor(sessionId, entry.path)}>
-                      ✎
-                    </IconButton>
-                  )}
-                  <IconButton
-                    title="下载"
-                    onClick={() => {
-                      void window.api.downloads.add(sessionId, entry.path).then((task) => {
-                        if (task) openBottomPanel('downloads')
-                      })
-                    }}
-                  >
-                    ⇩
-                  </IconButton>
-                </>
+              {!entry.isDirectory && isTextLike(entry.name) && (
+                <IconButton title="编辑" onClick={() => openEditor(sessionId, entry.path)}>
+                  ✎
+                </IconButton>
               )}
+              <IconButton
+                title={entry.isDirectory ? '下载目录' : '下载'}
+                onClick={() => {
+                  void window.api.downloads.add(sessionId, entry.path).then((tasks) => {
+                    if (tasks.length > 0) openBottomPanel('downloads')
+                  })
+                }}
+              >
+                ⇩
+              </IconButton>
               <IconButton
                 title="重命名"
                 onClick={() => {

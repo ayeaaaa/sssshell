@@ -1,23 +1,31 @@
 import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import { app } from 'electron'
+import { app, safeStorage } from 'electron'
 import type { ConnectionConfig, Tag } from '@shared/types'
 
 const DEFAULT_TAG_COLOR = '#3d9be9'
-const STORE_VERSION = 2
+const STORE_VERSION = 3
+
+/** 落盘时的连接结构：密码用 safeStorage 加密成 base64 */
+type StoredConnection = Omit<ConnectionConfig, 'password' | 'privateKeyPassphrase'> & {
+  password?: string
+  privateKeyPassphrase?: string
+  passwordEnc?: string
+  privateKeyPassphraseEnc?: string
+}
 
 interface StoreFile {
   version?: number
   tags?: Tag[]
-  connections?: ConnectionConfig[]
+  connections?: StoredConnection[]
 }
 
 /**
  * 连接配置 + 标签的本地持久化。
  *
- * TODO: 密码目前是明文存储，后续接入 Electron 的 safeStorage
- * （Windows 上走 DPAPI）加密 password / privateKeyPassphrase 字段。
+ * 密码和私钥口令在落盘前用 Electron safeStorage 加密（Windows 上走 DPAPI）。
+ * 内存里始终保持明文，界面和 SSH 连接拿到的都是可直接用的配置。
  */
 export class ConnectionStore {
   private readonly file: string
@@ -117,6 +125,7 @@ export class ConnectionStore {
 
   // ---------- 导入 / 导出 ----------
 
+  /** 导出为明文 JSON（方便换机导入），注意文件里会包含密码 */
   exportAll(): string {
     return JSON.stringify(
       { version: STORE_VERSION, tags: this.tags, connections: this.connections },
@@ -127,7 +136,7 @@ export class ConnectionStore {
 
   /** 从 JSON 文本导入，按 id 去重后合并；返回导入的连接条数 */
   importAll(json: string): number {
-    const parsed = JSON.parse(json) as StoreFile
+    const parsed = JSON.parse(json) as { tags?: Tag[]; connections?: Array<Partial<ConnectionConfig>> }
     const incomingTags = Array.isArray(parsed.tags) ? parsed.tags : []
     const incomingConnections = Array.isArray(parsed.connections) ? parsed.connections : []
 
@@ -142,9 +151,20 @@ export class ConnectionStore {
       if (item.id && this.connections.some((c) => c.id === item.id)) continue
 
       this.connections.push({
-        ...item,
         id: item.id ?? randomUUID(),
-        tags: this.normalizeTagIds(item.tags ?? [])
+        name: item.name ?? '',
+        group: item.group ?? '默认分组',
+        tags: this.normalizeTagIds(item.tags ?? []),
+        host: item.host,
+        port: item.port ?? 22,
+        username: item.username,
+        authMethod: item.authMethod ?? 'password',
+        password: item.password,
+        privateKeyPath: item.privateKeyPath,
+        privateKeyPassphrase: item.privateKeyPassphrase,
+        keepaliveInterval: item.keepaliveInterval ?? 30,
+        createdAt: item.createdAt ?? Date.now(),
+        updatedAt: Date.now()
       })
       count += 1
     }
@@ -161,6 +181,56 @@ export class ConnectionStore {
     return [...new Set(ids.filter((id) => known.has(id)))]
   }
 
+  private encrypt(value: string): string | null {
+    try {
+      if (!safeStorage.isEncryptionAvailable()) return null
+      return safeStorage.encryptString(value).toString('base64')
+    } catch {
+      return null
+    }
+  }
+
+  private decrypt(value: string): string | undefined {
+    try {
+      return safeStorage.decryptString(Buffer.from(value, 'base64'))
+    } catch {
+      // 换机器 / 系统账户变化后旧密文解不开，让用户重新输入密码
+      return undefined
+    }
+  }
+
+  private toStored(config: ConnectionConfig): StoredConnection {
+    const { password, privateKeyPassphrase, ...rest } = config
+    const stored: StoredConnection = { ...rest }
+
+    if (password) {
+      const encrypted = this.encrypt(password)
+      if (encrypted) stored.passwordEnc = encrypted
+      else stored.password = password
+    }
+
+    if (privateKeyPassphrase) {
+      const encrypted = this.encrypt(privateKeyPassphrase)
+      if (encrypted) stored.privateKeyPassphraseEnc = encrypted
+      else stored.privateKeyPassphrase = privateKeyPassphrase
+    }
+
+    return stored
+  }
+
+  private fromStored(stored: StoredConnection): ConnectionConfig {
+    const { passwordEnc, privateKeyPassphraseEnc, ...rest } = stored
+
+    return {
+      ...rest,
+      tags: this.normalizeTagIds(Array.isArray(rest.tags) ? rest.tags : []),
+      password: passwordEnc ? this.decrypt(passwordEnc) : stored.password,
+      privateKeyPassphrase: privateKeyPassphraseEnc
+        ? this.decrypt(privateKeyPassphraseEnc)
+        : stored.privateKeyPassphrase
+    }
+  }
+
   private load(): void {
     try {
       if (!existsSync(this.file)) return
@@ -171,10 +241,7 @@ export class ConnectionStore {
         : []
 
       this.connections = Array.isArray(parsed.connections)
-        ? parsed.connections.map((c) => ({
-            ...c,
-            tags: this.normalizeTagIds(Array.isArray(c.tags) ? c.tags : [])
-          }))
+        ? parsed.connections.map((stored) => this.fromStored(stored))
         : []
     } catch {
       this.connections = []
@@ -186,7 +253,15 @@ export class ConnectionStore {
     mkdirSync(dirname(this.file), { recursive: true })
     writeFileSync(
       this.file,
-      JSON.stringify({ version: STORE_VERSION, tags: this.tags, connections: this.connections }, null, 2),
+      JSON.stringify(
+        {
+          version: STORE_VERSION,
+          tags: this.tags,
+          connections: this.connections.map((config) => this.toStored(config))
+        },
+        null,
+        2
+      ),
       'utf8'
     )
   }

@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import type { ReactNode } from 'react'
 import type { ConnectionConfig } from '@shared/types'
 import { useAppStore } from '@renderer/store/useAppStore'
 
@@ -15,8 +16,27 @@ export function ConnectionTree({ onEdit, onCreate }: Props) {
   const setActiveTagFilter = useAppStore((s) => s.setActiveTagFilter)
   const openConnection = useAppStore((s) => s.openConnection)
   const deleteConnection = useAppStore((s) => s.deleteConnection)
+  const duplicateConnection = useAppStore((s) => s.duplicateConnection)
   const [keyword, setKeyword] = useState('')
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
+  const [menu, setMenu] = useState<{ x: number; y: number; config: ConnectionConfig | null } | null>(
+    null
+  )
+
+  // 右键菜单：点别处或按 Esc 关闭
+  useEffect(() => {
+    if (!menu) return
+    const close = (): void => setMenu(null)
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') setMenu(null)
+    }
+    window.addEventListener('mousedown', close)
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('mousedown', close)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [menu])
 
   const tagMap = useMemo(() => new Map(tags.map((tag) => [tag.id, tag])), [tags])
 
@@ -81,7 +101,13 @@ export function ConnectionTree({ onEdit, onCreate }: Props) {
         </div>
       )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-1 pb-2">
+      <div
+        className="min-h-0 flex-1 overflow-y-auto px-1 pb-2"
+        onContextMenu={(event) => {
+          event.preventDefault()
+          setMenu({ x: event.clientX, y: event.clientY, config: null })
+        }}
+      >
         {groups.length === 0 && (
           <p className="px-2 py-6 text-center text-[12px] leading-relaxed text-shell-400">
             {connections.length === 0 ? (
@@ -113,6 +139,11 @@ export function ConnectionTree({ onEdit, onCreate }: Props) {
                 <div
                   key={config.id}
                   className="group flex items-center gap-1 rounded py-1 pl-5 pr-1 hover:bg-shell-700"
+                  onContextMenu={(event) => {
+                    event.preventDefault()
+                    event.stopPropagation()
+                    setMenu({ x: event.clientX, y: event.clientY, config })
+                  }}
                 >
                   <button
                     type="button"
@@ -161,7 +192,85 @@ export function ConnectionTree({ onEdit, onCreate }: Props) {
           </div>
         ))}
       </div>
+
+      {menu && (
+        <div
+          className="fixed z-50 min-w-[136px] rounded border border-shell-600 bg-shell-700 py-1 text-[12px] text-shell-200 shadow-xl"
+          style={{ left: menu.x, top: menu.y }}
+          onMouseDown={(event) => event.stopPropagation()}
+        >
+          {menu.config ? (
+            <>
+              <ContextItem
+                onClick={() => {
+                  void openConnection(menu.config!)
+                  setMenu(null)
+                }}
+              >
+                连接
+              </ContextItem>
+              <ContextItem
+                onClick={() => {
+                  onEdit(menu.config!)
+                  setMenu(null)
+                }}
+              >
+                编辑
+              </ContextItem>
+              <ContextItem
+                onClick={() => {
+                  void duplicateConnection(menu.config!.id)
+                  setMenu(null)
+                }}
+              >
+                复制
+              </ContextItem>
+              <div className="my-1 border-t border-shell-600" />
+              <ContextItem
+                danger
+                onClick={() => {
+                  void deleteConnection(menu.config!.id)
+                  setMenu(null)
+                }}
+              >
+                删除
+              </ContextItem>
+            </>
+          ) : (
+            <ContextItem
+              onClick={() => {
+                onCreate()
+                setMenu(null)
+              }}
+            >
+              新建连接
+            </ContextItem>
+          )}
+        </div>
+      )}
     </div>
+  )
+}
+
+function ContextItem({
+  children,
+  onClick,
+  danger
+}: {
+  children: ReactNode
+  onClick: () => void
+  danger?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`block w-full px-3 py-1 text-left transition-colors hover:bg-accent-600 hover:text-white ${
+        danger ? 'text-danger' : ''
+      }`}
+    >
+      {children}
+    </button>
   )
 }
 

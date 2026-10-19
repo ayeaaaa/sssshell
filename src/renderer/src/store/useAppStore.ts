@@ -22,7 +22,7 @@ export interface TerminalTab {
 }
 
 export type RightPanel = 'monitor' | 'sftp'
-export type BottomPanelTab = 'commands' | 'history' | 'downloads'
+export type BottomPanelTab = 'commands' | 'history' | 'downloads' | 'batch'
 export type DropPosition = 'before' | 'after'
 
 /** 监控曲线保留的采样点数 */
@@ -56,6 +56,7 @@ interface AppState {
     config: Partial<ConnectionConfig> & Pick<ConnectionConfig, 'host' | 'username'>
   ) => Promise<ConnectionConfig>
   deleteConnection: (id: string) => Promise<void>
+  duplicateConnection: (id: string) => Promise<void>
 
   saveTag: (name: string, color?: string, id?: string) => Promise<Tag>
   deleteTag: (id: string) => Promise<void>
@@ -165,6 +166,13 @@ export const useAppStore = create<AppState>((set, get) => {
     async deleteConnection(id) {
       await window.api.connections.remove(id)
       set({ connections: get().connections.filter((c) => c.id !== id) })
+    },
+
+    async duplicateConnection(id) {
+      const source = get().connections.find((c) => c.id === id)
+      if (!source) return
+      const baseName = source.name || `${source.username}@${source.host}`
+      await get().saveConnection({ ...source, id: undefined, name: `${baseName} (副本)` })
     },
 
     async saveTag(name, color, id) {
