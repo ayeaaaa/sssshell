@@ -18,6 +18,7 @@ export default function App() {
   const tabs = useAppStore((s) => s.tabs)
   const activeTabId = useAppStore((s) => s.activeTabId)
   const rightPanelOpen = useAppStore((s) => s.rightPanelOpen)
+  const sidebarOpen = useAppStore((s) => s.sidebarOpen)
   const loadConnections = useAppStore((s) => s.loadConnections)
   const loadTags = useAppStore((s) => s.loadTags)
   const loadCommands = useAppStore((s) => s.loadCommands)
@@ -51,6 +52,14 @@ export default function App() {
     const onKeyDown = (event: KeyboardEvent): void => {
       if (!event.ctrlKey || event.altKey || event.metaKey) return
       const state = useAppStore.getState()
+
+      if (event.key.toLowerCase() === 'b') {
+        event.preventDefault()
+        event.stopPropagation()
+        state.toggleSidebar()
+        return
+      }
+
       if (state.tabs.length === 0) return
 
       if (event.key === 'Tab') {
@@ -125,11 +134,13 @@ export default function App() {
       <TitleBar />
 
       <div className="flex min-h-0 flex-1">
-        <ConnectionSidebar
-          onCreate={() => setDialog({ open: true, editing: null })}
-          onEdit={(config) => setDialog({ open: true, editing: config })}
-          onManageTags={() => setTagManagerOpen(true)}
-        />
+        {sidebarOpen && (
+          <ConnectionSidebar
+            onCreate={() => setDialog({ open: true, editing: null })}
+            onEdit={(config) => setDialog({ open: true, editing: config })}
+            onManageTags={() => setTagManagerOpen(true)}
+          />
+        )}
 
         <main className="flex min-w-0 flex-1 flex-col bg-shell-900">
           <TerminalTabs />

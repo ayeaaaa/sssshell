@@ -38,6 +38,8 @@ interface AppState {
   activeTabId: string | null
   rightPanel: RightPanel
   rightPanelOpen: boolean
+  /** 左侧连接管理器，默认收起 */
+  sidebarOpen: boolean
   /** 底部命令抽屉，默认收起 */
   bottomPanelOpen: boolean
   bottomPanelTab: BottomPanelTab
@@ -89,6 +91,7 @@ interface AppState {
 
   setRightPanel: (panel: RightPanel) => void
   toggleRightPanel: () => void
+  toggleSidebar: () => void
   toggleBottomPanel: () => void
   openBottomPanel: (tab: BottomPanelTab) => void
   closeBottomPanel: () => void
@@ -132,6 +135,7 @@ export const useAppStore = create<AppState>((set, get) => {
     activeTabId: null,
     rightPanel: 'monitor',
     rightPanelOpen: true,
+    sidebarOpen: false,
     bottomPanelOpen: false,
     bottomPanelTab: 'commands',
     history: [],
@@ -333,6 +337,10 @@ export const useAppStore = create<AppState>((set, get) => {
 
     toggleRightPanel() {
       set({ rightPanelOpen: !get().rightPanelOpen })
+    },
+
+    toggleSidebar() {
+      set({ sidebarOpen: !get().sidebarOpen })
     },
 
     toggleBottomPanel() {

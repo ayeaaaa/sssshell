@@ -17,6 +17,8 @@ export function StatusBar() {
   const toggleRightPanel = useAppStore((s) => s.toggleRightPanel)
   const bottomPanelOpen = useAppStore((s) => s.bottomPanelOpen)
   const toggleBottomPanel = useAppStore((s) => s.toggleBottomPanel)
+  const sidebarOpen = useAppStore((s) => s.sidebarOpen)
+  const toggleSidebar = useAppStore((s) => s.toggleSidebar)
 
   const tab = tabs.find((t) => t.id === activeTabId)
   const sample = useAppStore((s) => (activeTabId ? s.samples[activeTabId]?.at(-1) : undefined))
@@ -24,6 +26,15 @@ export function StatusBar() {
   return (
     <footer className="flex h-6 shrink-0 items-center justify-between border-t border-shell-700 bg-shell-950 px-3 text-[11px] text-shell-400">
       <div className="flex min-w-0 items-center gap-3">
+        <button
+          type="button"
+          onClick={toggleSidebar}
+          title="显示 / 隐藏连接管理器（Ctrl+B）"
+          className={sidebarOpen ? 'shrink-0 text-accent-400' : 'shrink-0 hover:text-shell-200'}
+        >
+          ☰ 连接
+        </button>
+        <span className="text-shell-600">|</span>
         {tab ? (
           <>
             <span className="text-shell-300">{stateText[tab.state]}</span>
