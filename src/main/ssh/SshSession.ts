@@ -1,12 +1,14 @@
 import { readFileSync } from 'node:fs'
 import { Client } from 'ssh2'
 import type { ClientChannel, ConnectConfig, SFTPWrapper } from 'ssh2'
-import type { SshConnectOptions, SshSessionState } from '@shared/types'
+import type { CommandRecord, SshConnectOptions, SshSessionState } from '@shared/types'
 
 export interface SshSessionEvents {
   onData: (sessionId: string, data: string) => void
   onState: (sessionId: string, state: SshSessionState, message?: string) => void
   onExit: (sessionId: string, code: number | null, signal?: string) => void
+  /** 识别出一条完整命令（已过滤掉不回显的输入） */
+  onCommand: (record: CommandRecord) => void
 }
 
 /**
@@ -23,6 +25,12 @@ export class SshSession {
   private state: SshSessionState = 'connecting'
   private disposed = false
   private exitEmitted = false
+  /** 当前正在输入的一行（用于命令历史） */
+  private inputBuffer = ''
+  /** 最近一段输出（去掉 ANSI 转义），用来判断命令是否被回显 */
+  private recentOutput = ''
+  /** 是否处于 vim / top 这类备用屏幕，避免把 TUI 按键记成命令 */
+  private altScreen = false
 
   constructor(options: SshConnectOptions, events: SshSessionEvents) {
     this.id = options.sessionId
@@ -84,8 +92,8 @@ export class SshSession {
       }
 
       this.stream = stream
-      stream.on('data', (chunk: Buffer) => this.events.onData(this.id, chunk.toString('utf8')))
-      stream.stderr.on('data', (chunk: Buffer) => this.events.onData(this.id, chunk.toString('utf8')))
+      stream.on('data', (chunk: Buffer) => this.handleOutput(chunk))
+      stream.stderr.on('data', (chunk: Buffer) => this.handleOutput(chunk))
       stream.on('close', () => {
         this.emitExit(null)
         this.dispose()
@@ -95,8 +103,10 @@ export class SshSession {
     })
   }
 
-  write(data: string): void {
-    this.stream?.write(data)
+  write(data: string, source: 'terminal' | 'quick' = 'terminal'): void {
+    if (!this.stream) return
+    this.stream.write(data)
+    this.trackInput(data, source)
   }
 
   resize(cols: number, rows: number): void {
@@ -148,6 +158,74 @@ export class SshSession {
     })
   }
 
+  /** 输出统一走这里：转发给渲染进程，同时留一份用于判断命令是否被回显 */
+  private handleOutput(chunk: Buffer): void {
+    const text = chunk.toString('utf8')
+    this.events.onData(this.id, text)
+
+    if (text.includes('\x1b[?1049h')) this.altScreen = true
+    if (text.includes('\x1b[?1049l')) this.altScreen = false
+
+    this.recentOutput = (this.recentOutput + stripAnsi(text)).slice(-8192)
+  }
+
+  /** 解析键盘输入，攒出一条完整命令行 */
+  private trackInput(data: string, source: 'terminal' | 'quick'): void {
+    let i = 0
+    while (i < data.length) {
+      const char = data[i]
+
+      if (char === '\x1b') {
+        // 跳过 CSI / SS3 转义序列（方向键、功能键、括号粘贴标记等）
+        if (data[i + 1] === '[') {
+          i += 2
+          while (i < data.length && !/[A-Za-z~]/.test(data[i])) i += 1
+          i += 1
+        } else if (data[i + 1] === 'O') {
+          i += 3
+        } else {
+          i += 2
+        }
+        continue
+      }
+
+      if (char === '\r' || char === '\n') {
+        this.commitInput(source)
+      } else if (char === '\x7f' || char === '\b') {
+        this.inputBuffer = this.inputBuffer.slice(0, -1)
+      } else if (char === '\x03' || char === '\x15') {
+        // Ctrl+C 取消 / Ctrl+U 清行
+        this.inputBuffer = ''
+      } else if (char === '\t') {
+        // Tab 补全的结果拿不到，忽略这一次按键
+      } else if (char >= ' ') {
+        this.inputBuffer += char
+      }
+
+      i += 1
+    }
+  }
+
+  private commitInput(source: 'terminal' | 'quick'): void {
+    const command = this.inputBuffer.trim()
+    this.inputBuffer = ''
+    if (!command || this.altScreen) return
+
+    const record: CommandRecord = {
+      sessionId: this.id,
+      command,
+      host: this.options.host,
+      username: this.options.username,
+      source
+    }
+
+    // 等回显到达后再判断：sudo 密码这类不回显的输入不会被记进历史
+    setTimeout(() => {
+      if (this.disposed || !this.recentOutput.includes(command)) return
+      this.events.onCommand(record)
+    }, 300)
+  }
+
   dispose(): void {
     if (this.disposed) return
     this.disposed = true
@@ -166,4 +244,12 @@ export class SshSession {
     this.exitEmitted = true
     this.events.onExit(this.id, code, signal)
   }
+}
+
+/** 去掉 ANSI 转义，方便在输出里查找命令原文 */
+function stripAnsi(text: string): string {
+  return text
+    .replace(/\x1b\][^\x07]*(?:\x07|\x1b\\)/g, '')
+    .replace(/\x1b\[[0-9;?]*[ -/]*[@-~]/g, '')
+    .replace(/\x1b[@-_]/g, '')
 }

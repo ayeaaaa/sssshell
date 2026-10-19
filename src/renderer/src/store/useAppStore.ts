@@ -1,5 +1,12 @@
 import { create } from 'zustand'
-import type { ConnectionConfig, MonitorSample, QuickCommand, SshSessionState, Tag } from '@shared/types'
+import type {
+  CommandHistoryEntry,
+  ConnectionConfig,
+  MonitorSample,
+  QuickCommand,
+  SshSessionState,
+  Tag
+} from '@shared/types'
 
 export interface TerminalTab {
   /** 同时作为 SSH 会话 ID */
@@ -13,7 +20,8 @@ export interface TerminalTab {
   openedAt: number
 }
 
-export type RightPanel = 'monitor' | 'sftp' | 'commands'
+export type RightPanel = 'monitor' | 'sftp'
+export type BottomPanelTab = 'commands' | 'history'
 export type DropPosition = 'before' | 'after'
 
 /** 监控曲线保留的采样点数 */
@@ -29,6 +37,10 @@ interface AppState {
   activeTabId: string | null
   rightPanel: RightPanel
   rightPanelOpen: boolean
+  /** 底部命令抽屉，默认收起 */
+  bottomPanelOpen: boolean
+  bottomPanelTab: BottomPanelTab
+  history: CommandHistoryEntry[]
   /** sessionId -> 最近若干次采样 */
   samples: Record<string, MonitorSample[]>
 
@@ -49,6 +61,11 @@ interface AppState {
   ) => Promise<QuickCommand>
   deleteCommand: (id: string) => Promise<void>
 
+  loadHistory: () => Promise<void>
+  removeHistory: (id: string) => Promise<void>
+  clearHistory: () => Promise<void>
+  appendHistory: (entry: CommandHistoryEntry) => void
+
   openConnection: (config: ConnectionConfig) => Promise<void>
   closeTab: (id: string) => Promise<void>
   closeOtherTabs: (id: string) => Promise<void>
@@ -61,6 +78,9 @@ interface AppState {
 
   setRightPanel: (panel: RightPanel) => void
   toggleRightPanel: () => void
+  toggleBottomPanel: () => void
+  openBottomPanel: (tab: BottomPanelTab) => void
+  closeBottomPanel: () => void
   pushSample: (sample: MonitorSample) => void
 }
 
@@ -101,6 +121,9 @@ export const useAppStore = create<AppState>((set, get) => {
     activeTabId: null,
     rightPanel: 'monitor',
     rightPanelOpen: true,
+    bottomPanelOpen: false,
+    bottomPanelTab: 'commands',
+    history: [],
     samples: {},
 
     async loadConnections() {
@@ -168,6 +191,25 @@ export const useAppStore = create<AppState>((set, get) => {
     async deleteCommand(id) {
       await window.api.commands.remove(id)
       set({ commands: get().commands.filter((c) => c.id !== id) })
+    },
+
+    async loadHistory() {
+      set({ history: await window.api.history.list() })
+    },
+
+    async removeHistory(id) {
+      await window.api.history.remove(id)
+      set({ history: get().history.filter((entry) => entry.id !== id) })
+    },
+
+    async clearHistory() {
+      await window.api.history.clear()
+      set({ history: [] })
+    },
+
+    appendHistory(entry) {
+      // 主进程对连续重复命令会复用同一条记录，这里按 id 去重后置顶
+      set({ history: [entry, ...get().history.filter((item) => item.id !== entry.id)] })
     },
 
     async openConnection(config) {
@@ -253,6 +295,18 @@ export const useAppStore = create<AppState>((set, get) => {
 
     toggleRightPanel() {
       set({ rightPanelOpen: !get().rightPanelOpen })
+    },
+
+    toggleBottomPanel() {
+      set({ bottomPanelOpen: !get().bottomPanelOpen })
+    },
+
+    openBottomPanel(tab) {
+      set({ bottomPanelOpen: true, bottomPanelTab: tab })
+    },
+
+    closeBottomPanel() {
+      set({ bottomPanelOpen: false })
     },
 
     pushSample(sample) {

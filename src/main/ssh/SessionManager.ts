@@ -21,8 +21,8 @@ export class SessionManager {
     return this.sessions.get(sessionId)
   }
 
-  write(sessionId: string, data: string): void {
-    this.sessions.get(sessionId)?.write(data)
+  write(sessionId: string, data: string, source: 'terminal' | 'quick' = 'terminal'): void {
+    this.sessions.get(sessionId)?.write(data, source)
   }
 
   resize(sessionId: string, cols: number, rows: number): void {

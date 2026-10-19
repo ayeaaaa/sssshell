@@ -2,9 +2,10 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { BrowserWindow, dialog, ipcMain } from 'electron'
 import type { IpcMainInvokeEvent, OpenDialogOptions } from 'electron'
 import { IPC } from '@shared/ipc'
-import type { ConnectionConfig, QuickCommand, SshConnectOptions, SshResizeRequest, SshWriteRequest, Tag } from '@shared/types'
+import type { CommandHistoryEntry, ConnectionConfig, QuickCommand, SshConnectOptions, SshResizeRequest, SshWriteRequest, Tag } from '@shared/types'
 import type { ConnectionStore } from '../store/connectionStore'
 import type { CommandStore } from '../store/commandStore'
+import type { HistoryStore } from '../store/historyStore'
 import type { SessionManager } from '../ssh/SessionManager'
 import type { SftpService } from '../sftp/SftpService'
 import type { MonitorService } from '../monitor/MonitorService'
@@ -13,12 +14,13 @@ import { broadcast } from './broadcast'
 export interface IpcDeps {
   store: ConnectionStore
   commands: CommandStore
+  history: HistoryStore
   sessions: SessionManager
   sftp: SftpService
   monitor: MonitorService
 }
 
-export function registerIpc({ store, commands, sessions, sftp, monitor }: IpcDeps): void {
+export function registerIpc({ store, commands, history, sessions, sftp, monitor }: IpcDeps): void {
   // ---------- 连接配置 ----------
   ipcMain.handle(IPC.connectionList, (): ConnectionConfig[] => store.list())
 
@@ -65,13 +67,20 @@ export function registerIpc({ store, commands, sessions, sftp, monitor }: IpcDep
 
   ipcMain.handle(IPC.commandDelete, (_event, id: string): boolean => commands.delete(id))
 
+  // ---------- 命令历史 ----------
+  ipcMain.handle(IPC.historyList, (): CommandHistoryEntry[] => history.list())
+
+  ipcMain.handle(IPC.historyRemove, (_event, id: string): boolean => history.remove(id))
+
+  ipcMain.handle(IPC.historyClear, (): boolean => history.clear())
+
   // ---------- SSH 会话 ----------
   ipcMain.handle(IPC.sshConnect, (_event, options: SshConnectOptions): void => {
     sessions.connect(options)
   })
 
   ipcMain.on(IPC.sshWrite, (_event, payload: SshWriteRequest): void => {
-    sessions.write(payload.sessionId, payload.data)
+    sessions.write(payload.sessionId, payload.data, payload.source)
   })
 
   ipcMain.on(IPC.sshResize, (_event, payload: SshResizeRequest): void => {

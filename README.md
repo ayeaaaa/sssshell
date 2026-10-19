@@ -29,14 +29,15 @@ src/
 │  ├─ monitor/MonitorService.ts  解析 /proc 得到 CPU / 内存 / 磁盘 / 网络
 │  └─ store/
 │     ├─ connectionStore.ts  连接 + 标签持久化（userData/connections.json）
-│     └─ commandStore.ts     快捷命令持久化（userData/quick-commands.json）
+│     ├─ commandStore.ts     快捷命令持久化（userData/quick-commands.json）
+│     └─ historyStore.ts     命令历史持久化（userData/command-history.json）
 ├─ preload/index.ts         暴露 window.api，渲染进程只拿得到这些方法
 ├─ renderer/src/
 │  ├─ App.tsx               整体布局 + 全局事件分发
 │  ├─ components/
-│  │  ├─ layout/            标题栏、左侧连接侧栏、状态栏
+│  │  ├─ layout/            标题栏、左侧连接侧栏、底部命令抽屉、状态栏
 │  │  ├─ connections/       连接树、新建/编辑连接弹窗、标签管理弹窗
-│  │  ├─ commands/          快捷命令面板、新建/编辑命令弹窗
+│  │  ├─ commands/          快捷命令卡片、命令历史、新建/编辑命令弹窗
 │  │  ├─ terminal/          xterm 终端、标签页、实例注册表、配色
 │  │  ├─ monitor/           服务器监控面板、迷你折线图
 │  │  └─ sftp/              文件管理面板
@@ -67,7 +68,8 @@ Node 24 / npm 11 下验证通过。
 - 密码 / 私钥两种认证，支持 keyboard-interactive 回退、心跳保活
 - 多标签终端：xterm.js + fit/search/web-links，窗口尺寸变化自动 `resize` 到远端
 - **标签页操作**：拖拽排序、右键菜单（重命名 / 关闭 / 关闭其他 / 关闭右侧 / 关闭全部）、双击重命名、中键关闭、`Ctrl+Tab` 循环切换、`Ctrl+1..9` 跳转
-- **快捷命令**：右侧「命令」面板，点一下把命令发到当前终端；支持搜索、新建/编辑/删除、`仅粘贴`（只填入不回车）；首次使用预置 6 条常用命令
+- **快捷命令**：终端下方的命令抽屉（默认收起，`Ctrl+`` 展开），卡片式布局，点一下发到当前终端；支持搜索、新建/编辑/删除、`仅粘贴`（只填入不回车）；首次使用预置 6 条常用命令
+- **命令历史**：自动记录终端里执行的命令，带主机、时间和来源；可搜索、点击重新执行、单条删除、一键清空；不回显的输入（如 sudo 密码）不会入历史；最多保留 500 条
 - 服务器监控：CPU、内存、交换分区、磁盘、网速、负载、运行时长、进程数，带历史曲线
 - SFTP 文件管理：浏览、进入目录、新建文件夹、重命名、删除（递归）、上传、下载、传输进度
 - 自绘标题栏（无边框窗口）、深色主题
@@ -78,6 +80,7 @@ Node 24 / npm 11 下验证通过。
 | --- | --- |
 | `Ctrl+Tab` / `Ctrl+Shift+Tab` | 下一个 / 上一个标签页 |
 | `Ctrl+1` … `Ctrl+9` | 跳到第 N 个标签页（超出数量则取最后一个） |
+| `` Ctrl+` `` | 展开 / 收起底部命令抽屉 |
 | 双击标签页标题 | 重命名标签页 |
 | 鼠标中键点标签页 | 关闭该标签页 |
 | 标签页上右键 | 重命名 / 关闭 / 关闭其他 / 关闭右侧 / 关闭全部 |
@@ -88,6 +91,7 @@ Node 24 / npm 11 下验证通过。
 - 监控只支持 Linux 目标机（依赖 `/proc`），Windows / macOS 目标机待补
 - 私钥路径目前是手输，还没做文件选择器
 - 上传只支持文件，暂不支持整个目录递归上传
+- 命令历史靠解析键盘输入得到：Tab 补全的内容拿不到，用方向键翻旧命令时可能漏记；vim/top 这类全屏程序里的按键会被自动忽略
 - 没设置 CSP，Electron 会在开发模式提示安全警告；打包前应补上严格的 `Content-Security-Policy`
 - 端口转发、SFTP 拖拽上传、命令快捷面板、批量命令下发等 FinalShell 特性还没做
 

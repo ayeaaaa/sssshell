@@ -84,6 +84,8 @@ export interface SshResizeRequest {
 export interface SshWriteRequest {
   sessionId: string
   data: string
+  /** 输入来源：手动敲键盘 or 点快捷命令/历史，用于命令历史标记 */
+  source?: 'terminal' | 'quick'
 }
 
 /** SFTP 目录项 */
@@ -140,4 +142,24 @@ export interface QuickCommand {
   autoRun: boolean
   createdAt: number
   updatedAt: number
+}
+
+/** 命令历史的一条记录 */
+export interface CommandHistoryEntry {
+  id: string
+  command: string
+  host: string
+  username: string
+  /** 手动输入 or 点快捷命令/历史发出 */
+  source: 'terminal' | 'quick'
+  executedAt: number
+}
+
+/** 主进程判定"这条命令该记入历史"后抛给上层的原始数据 */
+export interface CommandRecord {
+  sessionId: string
+  command: string
+  host: string
+  username: string
+  source: 'terminal' | 'quick'
 }

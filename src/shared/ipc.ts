@@ -19,6 +19,12 @@ export const IPC = {
   commandSave: 'command:save',
   commandDelete: 'command:delete',
 
+  /** 命令历史 */
+  historyList: 'history:list',
+  historyRemove: 'history:remove',
+  historyClear: 'history:clear',
+  historyAdded: 'history:added',
+
   /** SSH 会话 */
   sshConnect: 'ssh:connect',
   sshWrite: 'ssh:write',

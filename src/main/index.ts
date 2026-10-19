@@ -5,6 +5,7 @@ import type { SshDataEvent, SshExitEvent, SshStateEvent } from '@shared/types'
 import { SessionManager } from './ssh/SessionManager'
 import { ConnectionStore } from './store/connectionStore'
 import { CommandStore } from './store/commandStore'
+import { HistoryStore } from './store/historyStore'
 import { SftpService } from './sftp/SftpService'
 import { MonitorService } from './monitor/MonitorService'
 import { registerIpc } from './ipc'
@@ -14,10 +15,12 @@ let mainWindow: BrowserWindow | null = null
 
 const store = new ConnectionStore()
 const commands = new CommandStore()
+const history = new HistoryStore()
 const sessions = new SessionManager({
   onData: (sessionId, data) => broadcast(IPC.sshData, { sessionId, data } satisfies SshDataEvent),
   onState: (sessionId, state, message) => broadcast(IPC.sshState, { sessionId, state, message } satisfies SshStateEvent),
-  onExit: (sessionId, code, signal) => broadcast(IPC.sshExit, { sessionId, code, signal } satisfies SshExitEvent)
+  onExit: (sessionId, code, signal) => broadcast(IPC.sshExit, { sessionId, code, signal } satisfies SshExitEvent),
+  onCommand: (record) => broadcast(IPC.historyAdded, history.add(record))
 })
 const sftp = new SftpService(sessions)
 const monitor = new MonitorService(sessions, (sample) => broadcast(IPC.monitorSample, sample))
@@ -62,7 +65,7 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   app.setAppUserModelId('com.example.sshterminal')
-  registerIpc({ store, commands, sessions, sftp, monitor })
+  registerIpc({ store, commands, history, sessions, sftp, monitor })
   createWindow()
 
   app.on('activate', () => {

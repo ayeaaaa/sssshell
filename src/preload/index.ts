@@ -3,6 +3,7 @@ import type { IpcRendererEvent } from 'electron'
 import { IPC } from '@shared/ipc'
 import type { SshTerminalApi, Unsubscribe } from '@shared/api'
 import type {
+  CommandHistoryEntry,
   ConnectionConfig,
   MonitorSample,
   QuickCommand,
@@ -40,9 +41,15 @@ const api: SshTerminalApi = {
     save: (command) => ipcRenderer.invoke(IPC.commandSave, command) as Promise<QuickCommand>,
     remove: (id) => ipcRenderer.invoke(IPC.commandDelete, id) as Promise<boolean>
   },
+  history: {
+    list: () => ipcRenderer.invoke(IPC.historyList) as Promise<CommandHistoryEntry[]>,
+    remove: (id) => ipcRenderer.invoke(IPC.historyRemove, id) as Promise<boolean>,
+    clear: () => ipcRenderer.invoke(IPC.historyClear) as Promise<boolean>,
+    onAdded: (callback) => subscribe<CommandHistoryEntry>(IPC.historyAdded, callback)
+  },
   ssh: {
     connect: (options: SshConnectOptions) => ipcRenderer.invoke(IPC.sshConnect, options) as Promise<void>,
-    write: (sessionId, data) => ipcRenderer.send(IPC.sshWrite, { sessionId, data }),
+    write: (sessionId, data, source) => ipcRenderer.send(IPC.sshWrite, { sessionId, data, source }),
     resize: (sessionId, cols, rows) => ipcRenderer.send(IPC.sshResize, { sessionId, cols, rows }),
     disconnect: (sessionId) => ipcRenderer.invoke(IPC.sshDisconnect, sessionId) as Promise<void>,
     exec: (sessionId, command) => ipcRenderer.invoke(IPC.sshExec, sessionId, command) as Promise<string>,

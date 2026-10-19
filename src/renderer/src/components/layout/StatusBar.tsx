@@ -15,6 +15,8 @@ export function StatusBar() {
   const rightPanelOpen = useAppStore((s) => s.rightPanelOpen)
   const setRightPanel = useAppStore((s) => s.setRightPanel)
   const toggleRightPanel = useAppStore((s) => s.toggleRightPanel)
+  const bottomPanelOpen = useAppStore((s) => s.bottomPanelOpen)
+  const toggleBottomPanel = useAppStore((s) => s.toggleBottomPanel)
 
   const tab = tabs.find((t) => t.id === activeTabId)
   const sample = useAppStore((s) => (activeTabId ? s.samples[activeTabId]?.at(-1) : undefined))
@@ -61,13 +63,18 @@ export function StatusBar() {
             </button>
             <button
               type="button"
-              onClick={() => setRightPanel('commands')}
-              className={rightPanel === 'commands' && rightPanelOpen ? 'text-accent-400' : 'hover:text-shell-200'}
+              onClick={toggleRightPanel}
+              className="hover:text-shell-200"
             >
-              命令
+              {rightPanelOpen ? '收起侧栏' : '展开侧栏'}
             </button>
-            <button type="button" onClick={toggleRightPanel} className="hover:text-shell-200">
-              {rightPanelOpen ? '收起面板' : '展开面板'}
+            <button
+              type="button"
+              onClick={toggleBottomPanel}
+              title="Ctrl+`"
+              className={bottomPanelOpen ? 'text-accent-400' : 'hover:text-shell-200'}
+            >
+              命令面板
             </button>
           </>
         )}

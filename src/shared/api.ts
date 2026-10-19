@@ -3,6 +3,7 @@
  * 放在 shared 里是为了让渲染进程只依赖类型，不依赖 electron 模块。
  */
 import type {
+  CommandHistoryEntry,
   ConnectionConfig,
   MonitorSample,
   QuickCommand,
@@ -40,9 +41,16 @@ export interface SshTerminalApi {
     ): Promise<QuickCommand>
     remove(id: string): Promise<boolean>
   }
+  history: {
+    list(): Promise<CommandHistoryEntry[]>
+    remove(id: string): Promise<boolean>
+    clear(): Promise<boolean>
+    /** 主进程记录了一条新命令后推送 */
+    onAdded(callback: (entry: CommandHistoryEntry) => void): Unsubscribe
+  }
   ssh: {
     connect(options: SshConnectOptions): Promise<void>
-    write(sessionId: string, data: string): void
+    write(sessionId: string, data: string, source?: 'terminal' | 'quick'): void
     resize(sessionId: string, cols: number, rows: number): void
     disconnect(sessionId: string): Promise<void>
     exec(sessionId: string, command: string): Promise<string>

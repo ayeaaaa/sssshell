@@ -85,5 +85,11 @@ export function TerminalPane({ sessionId, active }: Props) {
     return () => window.clearTimeout(timer)
   }, [active, sessionId])
 
-  return <div ref={containerRef} className="h-full w-full overflow-hidden bg-shell-900" />
+  return (
+    <div
+      ref={containerRef}
+      data-session-id={sessionId}
+      className="h-full w-full overflow-hidden bg-shell-900"
+    />
+  )
 }

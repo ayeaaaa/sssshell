@@ -11,7 +11,7 @@ import { ConnectionDialog } from './components/connections/ConnectionDialog'
 import { TagManagerDialog } from './components/connections/TagManagerDialog'
 import { MonitorPanel } from './components/monitor/MonitorPanel'
 import { SftpPanel } from './components/sftp/SftpPanel'
-import { QuickCommandPanel } from './components/commands/QuickCommandPanel'
+import { BottomPanel } from './components/layout/BottomPanel'
 
 export default function App() {
   const tabs = useAppStore((s) => s.tabs)
@@ -20,6 +20,9 @@ export default function App() {
   const loadConnections = useAppStore((s) => s.loadConnections)
   const loadTags = useAppStore((s) => s.loadTags)
   const loadCommands = useAppStore((s) => s.loadCommands)
+  const loadHistory = useAppStore((s) => s.loadHistory)
+  const appendHistory = useAppStore((s) => s.appendHistory)
+  const bottomPanelOpen = useAppStore((s) => s.bottomPanelOpen)
   const updateTabState = useAppStore((s) => s.updateTabState)
   const pushSample = useAppStore((s) => s.pushSample)
 
@@ -35,7 +38,8 @@ export default function App() {
     void loadConnections()
     void loadTags()
     void loadCommands()
-  }, [loadConnections, loadTags, loadCommands])
+    void loadHistory()
+  }, [loadConnections, loadTags, loadCommands, loadHistory])
 
   // Ctrl+Tab / Ctrl+Shift+Tab 切换标签，Ctrl+1..9 跳到第 N 个
   useEffect(() => {
@@ -51,6 +55,13 @@ export default function App() {
         const delta = event.shiftKey ? -1 : 1
         const next = (index + delta + state.tabs.length) % state.tabs.length
         state.setActiveTab(state.tabs[next].id)
+        return
+      }
+
+      if (event.key === '`') {
+        event.preventDefault()
+        event.stopPropagation()
+        state.toggleBottomPanel()
         return
       }
 
@@ -89,14 +100,16 @@ export default function App() {
     })
 
     const offSample = window.api.monitor.onSample(pushSample)
+    const offHistory = window.api.history.onAdded(appendHistory)
 
     return () => {
       offData()
       offState()
       offExit()
       offSample()
+      offHistory()
     }
-  }, [updateTabState, pushSample])
+  }, [updateTabState, pushSample, appendHistory])
 
   return (
     <div className="flex h-full flex-col">
@@ -126,6 +139,10 @@ export default function App() {
               ))
             )}
           </div>
+
+          {bottomPanelOpen && activeTab && (
+            <BottomPanel sessionId={activeTab.id} connected={activeTab.state === 'ready'} />
+          )}
         </main>
 
         {rightPanelOpen && activeTab && <RightPanel sessionId={activeTab.id} connected={activeTab.state === 'ready'} />}
@@ -152,8 +169,7 @@ function RightPanel({ sessionId, connected }: { sessionId: string; connected: bo
         {(
           [
             ['monitor', '监控'],
-            ['sftp', '文件'],
-            ['commands', '命令']
+            ['sftp', '文件']
           ] as const
         ).map(([key, label]) => (
           <button
@@ -174,7 +190,6 @@ function RightPanel({ sessionId, connected }: { sessionId: string; connected: bo
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {rightPanel === 'monitor' && <MonitorPanel sessionId={sessionId} connected={connected} />}
         {rightPanel === 'sftp' && <SftpPanel sessionId={sessionId} connected={connected} />}
-        {rightPanel === 'commands' && <QuickCommandPanel sessionId={sessionId} connected={connected} />}
       </div>
     </aside>
   )
