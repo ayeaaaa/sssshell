@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { ConnectionConfig, MonitorSample, SshSessionState, Tag } from '@shared/types'
+import type { ConnectionConfig, MonitorSample, QuickCommand, SshSessionState, Tag } from '@shared/types'
 
 export interface TerminalTab {
   /** 同时作为 SSH 会话 ID */
@@ -13,7 +13,7 @@ export interface TerminalTab {
   openedAt: number
 }
 
-export type RightPanel = 'monitor' | 'sftp'
+export type RightPanel = 'monitor' | 'sftp' | 'commands'
 export type DropPosition = 'before' | 'after'
 
 /** 监控曲线保留的采样点数 */
@@ -22,6 +22,7 @@ const SAMPLE_HISTORY = 60
 interface AppState {
   connections: ConnectionConfig[]
   tags: Tag[]
+  commands: QuickCommand[]
   /** 左侧连接树的标签筛选，null 表示不筛选 */
   activeTagId: string | null
   tabs: TerminalTab[]
@@ -41,6 +42,12 @@ interface AppState {
   saveTag: (name: string, color?: string, id?: string) => Promise<Tag>
   deleteTag: (id: string) => Promise<void>
   setActiveTagFilter: (id: string | null) => void
+
+  loadCommands: () => Promise<void>
+  saveCommand: (
+    input: Partial<QuickCommand> & Pick<QuickCommand, 'name' | 'command'>
+  ) => Promise<QuickCommand>
+  deleteCommand: (id: string) => Promise<void>
 
   openConnection: (config: ConnectionConfig) => Promise<void>
   closeTab: (id: string) => Promise<void>
@@ -88,6 +95,7 @@ export const useAppStore = create<AppState>((set, get) => {
   return {
     connections: [],
     tags: [],
+    commands: [],
     activeTagId: null,
     tabs: [],
     activeTabId: null,
@@ -140,6 +148,26 @@ export const useAppStore = create<AppState>((set, get) => {
 
     setActiveTagFilter(id) {
       set({ activeTagId: id })
+    },
+
+    async loadCommands() {
+      set({ commands: await window.api.commands.list() })
+    },
+
+    async saveCommand(input) {
+      const saved = await window.api.commands.save(input)
+      const exists = get().commands.some((c) => c.id === saved.id)
+      set({
+        commands: exists
+          ? get().commands.map((c) => (c.id === saved.id ? saved : c))
+          : [...get().commands, saved]
+      })
+      return saved
+    },
+
+    async deleteCommand(id) {
+      await window.api.commands.remove(id)
+      set({ commands: get().commands.filter((c) => c.id !== id) })
     },
 
     async openConnection(config) {

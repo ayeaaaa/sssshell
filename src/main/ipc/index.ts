@@ -2,8 +2,9 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { BrowserWindow, dialog, ipcMain } from 'electron'
 import type { IpcMainInvokeEvent, OpenDialogOptions } from 'electron'
 import { IPC } from '@shared/ipc'
-import type { ConnectionConfig, SshConnectOptions, SshResizeRequest, SshWriteRequest, Tag } from '@shared/types'
+import type { ConnectionConfig, QuickCommand, SshConnectOptions, SshResizeRequest, SshWriteRequest, Tag } from '@shared/types'
 import type { ConnectionStore } from '../store/connectionStore'
+import type { CommandStore } from '../store/commandStore'
 import type { SessionManager } from '../ssh/SessionManager'
 import type { SftpService } from '../sftp/SftpService'
 import type { MonitorService } from '../monitor/MonitorService'
@@ -11,12 +12,13 @@ import { broadcast } from './broadcast'
 
 export interface IpcDeps {
   store: ConnectionStore
+  commands: CommandStore
   sessions: SessionManager
   sftp: SftpService
   monitor: MonitorService
 }
 
-export function registerIpc({ store, sessions, sftp, monitor }: IpcDeps): void {
+export function registerIpc({ store, commands, sessions, sftp, monitor }: IpcDeps): void {
   // ---------- 连接配置 ----------
   ipcMain.handle(IPC.connectionList, (): ConnectionConfig[] => store.list())
 
@@ -51,6 +53,17 @@ export function registerIpc({ store, sessions, sftp, monitor }: IpcDeps): void {
   ipcMain.handle(IPC.tagSave, (_event, tag: Partial<Tag> & Pick<Tag, 'name'>): Tag => store.saveTag(tag))
 
   ipcMain.handle(IPC.tagDelete, (_event, id: string): boolean => store.deleteTag(id))
+
+  // ---------- 快捷命令 ----------
+  ipcMain.handle(IPC.commandList, (): QuickCommand[] => commands.list())
+
+  ipcMain.handle(
+    IPC.commandSave,
+    (_event, command: Partial<QuickCommand> & Pick<QuickCommand, 'name' | 'command'>): QuickCommand =>
+      commands.save(command)
+  )
+
+  ipcMain.handle(IPC.commandDelete, (_event, id: string): boolean => commands.delete(id))
 
   // ---------- SSH 会话 ----------
   ipcMain.handle(IPC.sshConnect, (_event, options: SshConnectOptions): void => {

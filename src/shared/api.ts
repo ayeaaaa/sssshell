@@ -5,6 +5,7 @@
 import type {
   ConnectionConfig,
   MonitorSample,
+  QuickCommand,
   SftpEntry,
   SshConnectOptions,
   SshDataEvent,
@@ -30,6 +31,13 @@ export interface SshTerminalApi {
     list(): Promise<Tag[]>
     save(tag: Partial<Tag> & Pick<Tag, 'name'>): Promise<Tag>
     /** 删除标签，同时会从所有连接上摘掉 */
+    remove(id: string): Promise<boolean>
+  }
+  commands: {
+    list(): Promise<QuickCommand[]>
+    save(
+      command: Partial<QuickCommand> & Pick<QuickCommand, 'name' | 'command'>
+    ): Promise<QuickCommand>
     remove(id: string): Promise<boolean>
   }
   ssh: {

@@ -14,6 +14,11 @@ export const IPC = {
   tagSave: 'tag:save',
   tagDelete: 'tag:delete',
 
+  /** 快捷命令 */
+  commandList: 'command:list',
+  commandSave: 'command:save',
+  commandDelete: 'command:delete',
+
   /** SSH 会话 */
   sshConnect: 'ssh:connect',
   sshWrite: 'ssh:write',

@@ -11,6 +11,7 @@ import { ConnectionDialog } from './components/connections/ConnectionDialog'
 import { TagManagerDialog } from './components/connections/TagManagerDialog'
 import { MonitorPanel } from './components/monitor/MonitorPanel'
 import { SftpPanel } from './components/sftp/SftpPanel'
+import { QuickCommandPanel } from './components/commands/QuickCommandPanel'
 
 export default function App() {
   const tabs = useAppStore((s) => s.tabs)
@@ -18,6 +19,7 @@ export default function App() {
   const rightPanelOpen = useAppStore((s) => s.rightPanelOpen)
   const loadConnections = useAppStore((s) => s.loadConnections)
   const loadTags = useAppStore((s) => s.loadTags)
+  const loadCommands = useAppStore((s) => s.loadCommands)
   const updateTabState = useAppStore((s) => s.updateTabState)
   const pushSample = useAppStore((s) => s.pushSample)
 
@@ -32,7 +34,8 @@ export default function App() {
   useEffect(() => {
     void loadConnections()
     void loadTags()
-  }, [loadConnections, loadTags])
+    void loadCommands()
+  }, [loadConnections, loadTags, loadCommands])
 
   // Ctrl+Tab / Ctrl+Shift+Tab 切换标签，Ctrl+1..9 跳到第 N 个
   useEffect(() => {
@@ -148,8 +151,9 @@ function RightPanel({ sessionId, connected }: { sessionId: string; connected: bo
       <div className="flex shrink-0 border-b border-shell-700">
         {(
           [
-            ['monitor', '服务器监控'],
-            ['sftp', '文件管理']
+            ['monitor', '监控'],
+            ['sftp', '文件'],
+            ['commands', '命令']
           ] as const
         ).map(([key, label]) => (
           <button
@@ -168,11 +172,9 @@ function RightPanel({ sessionId, connected }: { sessionId: string; connected: bo
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-        {rightPanel === 'monitor' ? (
-          <MonitorPanel sessionId={sessionId} connected={connected} />
-        ) : (
-          <SftpPanel sessionId={sessionId} connected={connected} />
-        )}
+        {rightPanel === 'monitor' && <MonitorPanel sessionId={sessionId} connected={connected} />}
+        {rightPanel === 'sftp' && <SftpPanel sessionId={sessionId} connected={connected} />}
+        {rightPanel === 'commands' && <QuickCommandPanel sessionId={sessionId} connected={connected} />}
       </div>
     </aside>
   )

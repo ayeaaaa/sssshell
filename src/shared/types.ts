@@ -128,3 +128,16 @@ export interface MonitorSample {
   loadAverage: [number, number, number]
   processCount: number
 }
+
+/** 快捷命令：点一下把命令发到当前终端 */
+export interface QuickCommand {
+  id: string
+  /** 显示名称，例如 "磁盘占用" */
+  name: string
+  /** 实际发送到终端的命令 */
+  command: string
+  /** true = 发送后自动回车执行；false = 只粘贴，留给用户确认 */
+  autoRun: boolean
+  createdAt: number
+  updatedAt: number
+}

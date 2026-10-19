@@ -28,3 +28,7 @@ export function writeLocalNotice(sessionId: string, text: string, color = '\x1b[
 export function clearTerminal(sessionId: string): void {
   terminals.get(sessionId)?.clear()
 }
+
+export function focusTerminal(sessionId: string): void {
+  terminals.get(sessionId)?.focus()
+}

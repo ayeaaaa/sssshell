@@ -5,6 +5,7 @@ import type { SshTerminalApi, Unsubscribe } from '@shared/api'
 import type {
   ConnectionConfig,
   MonitorSample,
+  QuickCommand,
   SftpEntry,
   SshConnectOptions,
   SshDataEvent,
@@ -33,6 +34,11 @@ const api: SshTerminalApi = {
     list: () => ipcRenderer.invoke(IPC.tagList) as Promise<Tag[]>,
     save: (tag) => ipcRenderer.invoke(IPC.tagSave, tag) as Promise<Tag>,
     remove: (id) => ipcRenderer.invoke(IPC.tagDelete, id) as Promise<boolean>
+  },
+  commands: {
+    list: () => ipcRenderer.invoke(IPC.commandList) as Promise<QuickCommand[]>,
+    save: (command) => ipcRenderer.invoke(IPC.commandSave, command) as Promise<QuickCommand>,
+    remove: (id) => ipcRenderer.invoke(IPC.commandDelete, id) as Promise<boolean>
   },
   ssh: {
     connect: (options: SshConnectOptions) => ipcRenderer.invoke(IPC.sshConnect, options) as Promise<void>,

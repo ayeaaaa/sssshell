@@ -4,6 +4,7 @@ import { IPC } from '@shared/ipc'
 import type { SshDataEvent, SshExitEvent, SshStateEvent } from '@shared/types'
 import { SessionManager } from './ssh/SessionManager'
 import { ConnectionStore } from './store/connectionStore'
+import { CommandStore } from './store/commandStore'
 import { SftpService } from './sftp/SftpService'
 import { MonitorService } from './monitor/MonitorService'
 import { registerIpc } from './ipc'
@@ -12,6 +13,7 @@ import { broadcast } from './ipc/broadcast'
 let mainWindow: BrowserWindow | null = null
 
 const store = new ConnectionStore()
+const commands = new CommandStore()
 const sessions = new SessionManager({
   onData: (sessionId, data) => broadcast(IPC.sshData, { sessionId, data } satisfies SshDataEvent),
   onState: (sessionId, state, message) => broadcast(IPC.sshState, { sessionId, state, message } satisfies SshStateEvent),
@@ -60,7 +62,7 @@ function createWindow(): void {
 
 app.whenReady().then(() => {
   app.setAppUserModelId('com.example.sshterminal')
-  registerIpc({ store, sessions, sftp, monitor })
+  registerIpc({ store, commands, sessions, sftp, monitor })
   createWindow()
 
   app.on('activate', () => {

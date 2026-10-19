@@ -27,13 +27,16 @@ src/
 │  │  └─ SessionManager.ts  活跃会话表
 │  ├─ sftp/SftpService.ts   目录浏览、增删改、上传下载
 │  ├─ monitor/MonitorService.ts  解析 /proc 得到 CPU / 内存 / 磁盘 / 网络
-│  └─ store/connectionStore.ts   连接配置持久化（userData/connections.json）
+│  └─ store/
+│     ├─ connectionStore.ts  连接 + 标签持久化（userData/connections.json）
+│     └─ commandStore.ts     快捷命令持久化（userData/quick-commands.json）
 ├─ preload/index.ts         暴露 window.api，渲染进程只拿得到这些方法
 ├─ renderer/src/
 │  ├─ App.tsx               整体布局 + 全局事件分发
 │  ├─ components/
 │  │  ├─ layout/            标题栏、左侧连接侧栏、状态栏
 │  │  ├─ connections/       连接树、新建/编辑连接弹窗、标签管理弹窗
+│  │  ├─ commands/          快捷命令面板、新建/编辑命令弹窗
 │  │  ├─ terminal/          xterm 终端、标签页、实例注册表、配色
 │  │  ├─ monitor/           服务器监控面板、迷你折线图
 │  │  └─ sftp/              文件管理面板
@@ -64,6 +67,7 @@ Node 24 / npm 11 下验证通过。
 - 密码 / 私钥两种认证，支持 keyboard-interactive 回退、心跳保活
 - 多标签终端：xterm.js + fit/search/web-links，窗口尺寸变化自动 `resize` 到远端
 - **标签页操作**：拖拽排序、右键菜单（重命名 / 关闭 / 关闭其他 / 关闭右侧 / 关闭全部）、双击重命名、中键关闭、`Ctrl+Tab` 循环切换、`Ctrl+1..9` 跳转
+- **快捷命令**：右侧「命令」面板，点一下把命令发到当前终端；支持搜索、新建/编辑/删除、`仅粘贴`（只填入不回车）；首次使用预置 6 条常用命令
 - 服务器监控：CPU、内存、交换分区、磁盘、网速、负载、运行时长、进程数，带历史曲线
 - SFTP 文件管理：浏览、进入目录、新建文件夹、重命名、删除（递归）、上传、下载、传输进度
 - 自绘标题栏（无边框窗口）、深色主题

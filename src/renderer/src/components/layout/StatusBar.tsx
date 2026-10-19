@@ -59,6 +59,13 @@ export function StatusBar() {
             >
               文件
             </button>
+            <button
+              type="button"
+              onClick={() => setRightPanel('commands')}
+              className={rightPanel === 'commands' && rightPanelOpen ? 'text-accent-400' : 'hover:text-shell-200'}
+            >
+              命令
+            </button>
             <button type="button" onClick={toggleRightPanel} className="hover:text-shell-200">
               {rightPanelOpen ? '收起面板' : '展开面板'}
             </button>
