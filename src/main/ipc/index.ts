@@ -2,7 +2,7 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { BrowserWindow, dialog, ipcMain } from 'electron'
 import type { IpcMainInvokeEvent, OpenDialogOptions } from 'electron'
 import { IPC } from '@shared/ipc'
-import type { ConnectionConfig, SshConnectOptions, SshResizeRequest, SshWriteRequest } from '@shared/types'
+import type { ConnectionConfig, SshConnectOptions, SshResizeRequest, SshWriteRequest, Tag } from '@shared/types'
 import type { ConnectionStore } from '../store/connectionStore'
 import type { SessionManager } from '../ssh/SessionManager'
 import type { SftpService } from '../sftp/SftpService'
@@ -44,6 +44,13 @@ export function registerIpc({ store, sessions, sftp, monitor }: IpcDeps): void {
     if (canceled || filePaths.length === 0) return 0
     return store.importAll(readFileSync(filePaths[0], 'utf8'))
   })
+
+  // ---------- 标签 ----------
+  ipcMain.handle(IPC.tagList, (): Tag[] => store.listTags())
+
+  ipcMain.handle(IPC.tagSave, (_event, tag: Partial<Tag> & Pick<Tag, 'name'>): Tag => store.saveTag(tag))
+
+  ipcMain.handle(IPC.tagDelete, (_event, id: string): boolean => store.deleteTag(id))
 
   // ---------- SSH 会话 ----------
   ipcMain.handle(IPC.sshConnect, (_event, options: SshConnectOptions): void => {

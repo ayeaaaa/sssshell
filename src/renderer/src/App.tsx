@@ -8,6 +8,7 @@ import { TerminalTabs } from './components/terminal/TerminalTabs'
 import { TerminalPane } from './components/terminal/TerminalPane'
 import { writeLocalNotice, writeToTerminal } from './components/terminal/terminalRegistry'
 import { ConnectionDialog } from './components/connections/ConnectionDialog'
+import { TagManagerDialog } from './components/connections/TagManagerDialog'
 import { MonitorPanel } from './components/monitor/MonitorPanel'
 import { SftpPanel } from './components/sftp/SftpPanel'
 
@@ -16,6 +17,7 @@ export default function App() {
   const activeTabId = useAppStore((s) => s.activeTabId)
   const rightPanelOpen = useAppStore((s) => s.rightPanelOpen)
   const loadConnections = useAppStore((s) => s.loadConnections)
+  const loadTags = useAppStore((s) => s.loadTags)
   const updateTabState = useAppStore((s) => s.updateTabState)
   const pushSample = useAppStore((s) => s.pushSample)
 
@@ -23,12 +25,43 @@ export default function App() {
     open: false,
     editing: null
   })
+  const [tagManagerOpen, setTagManagerOpen] = useState(false)
 
   const activeTab = tabs.find((t) => t.id === activeTabId) ?? null
 
   useEffect(() => {
     void loadConnections()
-  }, [loadConnections])
+    void loadTags()
+  }, [loadConnections, loadTags])
+
+  // Ctrl+Tab / Ctrl+Shift+Tab 切换标签，Ctrl+1..9 跳到第 N 个
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (!event.ctrlKey || event.altKey || event.metaKey) return
+      const state = useAppStore.getState()
+      if (state.tabs.length === 0) return
+
+      if (event.key === 'Tab') {
+        event.preventDefault()
+        event.stopPropagation()
+        const index = state.tabs.findIndex((t) => t.id === state.activeTabId)
+        const delta = event.shiftKey ? -1 : 1
+        const next = (index + delta + state.tabs.length) % state.tabs.length
+        state.setActiveTab(state.tabs[next].id)
+        return
+      }
+
+      if (/^[1-9]$/.test(event.key)) {
+        event.preventDefault()
+        const target = state.tabs[Math.min(Number(event.key) - 1, state.tabs.length - 1)]
+        if (target) state.setActiveTab(target.id)
+      }
+    }
+
+    // 捕获阶段拦截，避免 xterm 先吃掉按键
+    window.addEventListener('keydown', onKeyDown, true)
+    return () => window.removeEventListener('keydown', onKeyDown, true)
+  }, [])
 
   // 全局只订阅一次主进程事件，再分发到各个终端
   useEffect(() => {
@@ -70,6 +103,7 @@ export default function App() {
         <ConnectionSidebar
           onCreate={() => setDialog({ open: true, editing: null })}
           onEdit={(config) => setDialog({ open: true, editing: config })}
+          onManageTags={() => setTagManagerOpen(true)}
         />
 
         <main className="flex min-w-0 flex-1 flex-col bg-shell-900">
@@ -99,6 +133,8 @@ export default function App() {
       {dialog.open && (
         <ConnectionDialog editing={dialog.editing} onClose={() => setDialog({ open: false, editing: null })} />
       )}
+
+      {tagManagerOpen && <TagManagerDialog onClose={() => setTagManagerOpen(false)} />}
     </div>
   )
 }

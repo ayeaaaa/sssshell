@@ -10,6 +10,7 @@ import type {
   SshDataEvent,
   SshExitEvent,
   SshStateEvent,
+  Tag,
   TransferProgress
 } from './types'
 
@@ -24,6 +25,12 @@ export interface SshTerminalApi {
     exportAll(): Promise<string | null>
     /** 从文件导入，返回导入条数 */
     importAll(): Promise<number>
+  }
+  tags: {
+    list(): Promise<Tag[]>
+    save(tag: Partial<Tag> & Pick<Tag, 'name'>): Promise<Tag>
+    /** 删除标签，同时会从所有连接上摘掉 */
+    remove(id: string): Promise<boolean>
   }
   ssh: {
     connect(options: SshConnectOptions): Promise<void>

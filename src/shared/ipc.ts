@@ -9,6 +9,11 @@ export const IPC = {
   connectionExport: 'connection:export',
   connectionImport: 'connection:import',
 
+  /** 标签 */
+  tagList: 'tag:list',
+  tagSave: 'tag:save',
+  tagDelete: 'tag:delete',
+
   /** SSH 会话 */
   sshConnect: 'ssh:connect',
   sshWrite: 'ssh:write',

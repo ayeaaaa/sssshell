@@ -12,6 +12,7 @@ interface Props {
 type FormState = {
   name: string
   group: string
+  tags: string[]
   host: string
   port: string
   username: string
@@ -26,6 +27,7 @@ function toForm(config: ConnectionConfig | null): FormState {
   return {
     name: config?.name ?? '',
     group: config?.group ?? '默认分组',
+    tags: config?.tags ?? [],
     host: config?.host ?? '',
     port: String(config?.port ?? 22),
     username: config?.username ?? 'root',
@@ -40,11 +42,32 @@ function toForm(config: ConnectionConfig | null): FormState {
 export function ConnectionDialog({ editing, onClose }: Props) {
   const saveConnection = useAppStore((s) => s.saveConnection)
   const openConnection = useAppStore((s) => s.openConnection)
+  const tags = useAppStore((s) => s.tags)
+  const saveTag = useAppStore((s) => s.saveTag)
   const [form, setForm] = useState<FormState>(() => toForm(editing))
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  /** 正在输入的新标签名，null 表示没在新建 */
+  const [newTag, setNewTag] = useState<string | null>(null)
 
   const patch = (partial: Partial<FormState>): void => setForm((prev) => ({ ...prev, ...partial }))
+
+  const toggleTag = (id: string): void => {
+    patch({
+      tags: form.tags.includes(id) ? form.tags.filter((t) => t !== id) : [...form.tags, id]
+    })
+  }
+
+  const createTag = async (): Promise<void> => {
+    const name = newTag?.trim()
+    if (!name) {
+      setNewTag(null)
+      return
+    }
+    const tag = await saveTag(name)
+    setForm((prev) => ({ ...prev, tags: [...prev.tags, tag.id] }))
+    setNewTag(null)
+  }
 
   const port = Number.parseInt(form.port, 10)
   const keepalive = Number.parseInt(form.keepaliveInterval, 10)
@@ -65,6 +88,7 @@ export function ConnectionDialog({ editing, onClose }: Props) {
         id: editing?.id,
         name: form.name.trim(),
         group: form.group.trim() || '默认分组',
+        tags: form.tags,
         host: form.host.trim(),
         port,
         username: form.username.trim(),
@@ -116,6 +140,64 @@ export function ConnectionDialog({ editing, onClose }: Props) {
               onChange={(e) => patch({ group: e.target.value })}
               className={inputClass}
             />
+          </Field>
+
+          <Field label="标签" span>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {tags.map((tag) => {
+                const selected = form.tags.includes(tag.id)
+                return (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    onClick={() => toggleTag(tag.id)}
+                    className="rounded-full border px-2 py-0.5 text-[11px] transition-colors"
+                    style={
+                      selected
+                        ? { borderColor: tag.color, color: tag.color, backgroundColor: `${tag.color}22` }
+                        : { borderColor: '#3a404a', color: '#a9b1bd' }
+                    }
+                  >
+                    {tag.name}
+                  </button>
+                )
+              })}
+
+              {newTag === null ? (
+                <button
+                  type="button"
+                  onClick={() => setNewTag('')}
+                  className="rounded-full border border-dashed border-shell-500 px-2 py-0.5 text-[11px] text-shell-400 transition-colors hover:text-shell-200"
+                >
+                  ＋ 新建标签
+                </button>
+              ) : (
+                <span className="flex items-center gap-1">
+                  <input
+                    autoFocus
+                    value={newTag}
+                    onChange={(event) => setNewTag(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault()
+                        void createTag()
+                      }
+                      if (event.key === 'Escape') setNewTag(null)
+                    }}
+                    placeholder="标签名"
+                    className="h-6 w-24 rounded border border-accent-600 bg-shell-900 px-2 text-[11px] text-shell-200 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void createTag()}
+                    title="添加"
+                    className="h-6 w-6 rounded bg-accent-600 text-[11px] text-white hover:bg-accent-500"
+                  >
+                    ✓
+                  </button>
+                </span>
+              )}
+            </div>
           </Field>
           <Field label="主机地址">
             <input

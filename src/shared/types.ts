@@ -5,6 +5,14 @@
 
 export type AuthMethod = 'password' | 'privateKey'
 
+/** 连接标签，用于给服务器分类（生产 / 测试 / 客户 A…） */
+export interface Tag {
+  id: string
+  name: string
+  /** 十六进制颜色，例如 #3d9be9 */
+  color: string
+}
+
 /** 一条保存的连接配置（对应 FinalShell 左侧的连接树节点） */
 export interface ConnectionConfig {
   id: string
@@ -12,6 +20,8 @@ export interface ConnectionConfig {
   name: string
   /** 所属分组，例如 "生产环境" */
   group: string
+  /** 关联的标签 ID 列表 */
+  tags: string[]
   host: string
   port: number
   username: string

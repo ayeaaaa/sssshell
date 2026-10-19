@@ -33,7 +33,7 @@ src/
 │  ├─ App.tsx               整体布局 + 全局事件分发
 │  ├─ components/
 │  │  ├─ layout/            标题栏、左侧连接侧栏、状态栏
-│  │  ├─ connections/       连接树、新建/编辑连接弹窗
+│  │  ├─ connections/       连接树、新建/编辑连接弹窗、标签管理弹窗
 │  │  ├─ terminal/          xterm 终端、标签页、实例注册表、配色
 │  │  ├─ monitor/           服务器监控面板、迷你折线图
 │  │  └─ sftp/              文件管理面板
@@ -60,11 +60,23 @@ Node 24 / npm 11 下验证通过。
 ## 已实现
 
 - 连接配置的增删改查、分组、搜索、导入导出（存 `%APPDATA%/ssh-terminal/connections.json`）
+- **连接标签**：给服务器打彩色标签，左侧按标签筛选；标签可新建、改名、点色块换色、删除（删除时会自动从连接上摘掉）
 - 密码 / 私钥两种认证，支持 keyboard-interactive 回退、心跳保活
 - 多标签终端：xterm.js + fit/search/web-links，窗口尺寸变化自动 `resize` 到远端
+- **标签页操作**：拖拽排序、右键菜单（重命名 / 关闭 / 关闭其他 / 关闭右侧 / 关闭全部）、双击重命名、中键关闭、`Ctrl+Tab` 循环切换、`Ctrl+1..9` 跳转
 - 服务器监控：CPU、内存、交换分区、磁盘、网速、负载、运行时长、进程数，带历史曲线
 - SFTP 文件管理：浏览、进入目录、新建文件夹、重命名、删除（递归）、上传、下载、传输进度
 - 自绘标题栏（无边框窗口）、深色主题
+
+## 快捷键
+
+| 按键 | 作用 |
+| --- | --- |
+| `Ctrl+Tab` / `Ctrl+Shift+Tab` | 下一个 / 上一个标签页 |
+| `Ctrl+1` … `Ctrl+9` | 跳到第 N 个标签页（超出数量则取最后一个） |
+| 双击标签页标题 | 重命名标签页 |
+| 鼠标中键点标签页 | 关闭该标签页 |
+| 标签页上右键 | 重命名 / 关闭 / 关闭其他 / 关闭右侧 / 关闭全部 |
 
 ## 已知限制 / 待办
 
@@ -80,3 +92,5 @@ Node 24 / npm 11 下验证通过。
 - 主进程不做业务 UI 决策，渲染进程不直接碰 Node API，一切都走 `window.api`（见 `src/shared/api.ts`）
 - 新增 IPC 频道时先在 `src/shared/ipc.ts` 登记，再在 `src/main/ipc/index.ts` 注册，最后在 preload 里转发
 - 终端数据统一由 `App.tsx` 订阅一次，经 `terminalRegistry` 按 sessionId 分发，不要在每个终端里重复订阅
+- 标签颜色从 `components/connections/tagColors.ts` 的调色板里取，新增颜色改这一处即可
+- 删除标签时必须同时清理连接上的引用：主进程 `ConnectionStore.deleteTag` 负责，渲染进程 store 同步本地副本

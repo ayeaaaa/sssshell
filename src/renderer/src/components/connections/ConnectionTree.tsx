@@ -7,21 +7,26 @@ interface Props {
   onCreate: () => void
 }
 
-/** 左侧连接树：按 group 分组，点击即发起连接 */
+/** 左侧连接树：按 group 分组，支持关键字搜索 + 标签筛选，点击即发起连接 */
 export function ConnectionTree({ onEdit, onCreate }: Props) {
   const connections = useAppStore((s) => s.connections)
+  const tags = useAppStore((s) => s.tags)
+  const activeTagId = useAppStore((s) => s.activeTagId)
+  const setActiveTagFilter = useAppStore((s) => s.setActiveTagFilter)
   const openConnection = useAppStore((s) => s.openConnection)
   const deleteConnection = useAppStore((s) => s.deleteConnection)
   const [keyword, setKeyword] = useState('')
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
 
+  const tagMap = useMemo(() => new Map(tags.map((tag) => [tag.id, tag])), [tags])
+
   const groups = useMemo(() => {
     const lower = keyword.trim().toLowerCase()
-    const filtered = lower
-      ? connections.filter((c) =>
-          [c.name, c.host, c.username, c.group].some((field) => field?.toLowerCase().includes(lower))
-        )
-      : connections
+    const filtered = connections.filter((c) => {
+      if (activeTagId && !c.tags.includes(activeTagId)) return false
+      if (!lower) return true
+      return [c.name, c.host, c.username, c.group].some((field) => field?.toLowerCase().includes(lower))
+    })
 
     const map = new Map<string, ConnectionConfig[]>()
     for (const item of filtered) {
@@ -31,7 +36,7 @@ export function ConnectionTree({ onEdit, onCreate }: Props) {
       map.set(key, list)
     }
     return [...map.entries()].sort((a, b) => a[0].localeCompare(b[0], 'zh-CN'))
-  }, [connections, keyword])
+  }, [connections, keyword, activeTagId])
 
   const toggleGroup = (name: string): void => {
     setCollapsed((prev) => {
@@ -61,12 +66,33 @@ export function ConnectionTree({ onEdit, onCreate }: Props) {
         </button>
       </div>
 
+      {tags.length > 0 && (
+        <div className="flex max-h-20 flex-wrap gap-1 overflow-y-auto px-2 pb-1.5">
+          <FilterChip label="全部" active={activeTagId === null} onClick={() => setActiveTagFilter(null)} />
+          {tags.map((tag) => (
+            <FilterChip
+              key={tag.id}
+              label={tag.name}
+              color={tag.color}
+              active={activeTagId === tag.id}
+              onClick={() => setActiveTagFilter(activeTagId === tag.id ? null : tag.id)}
+            />
+          ))}
+        </div>
+      )}
+
       <div className="min-h-0 flex-1 overflow-y-auto px-1 pb-2">
         {groups.length === 0 && (
           <p className="px-2 py-6 text-center text-[12px] leading-relaxed text-shell-400">
-            还没有连接
-            <br />
-            点右上角 ＋ 添加一台服务器
+            {connections.length === 0 ? (
+              <>
+                还没有连接
+                <br />
+                点右上角 ＋ 添加一台服务器
+              </>
+            ) : (
+              '没有匹配的连接'
+            )}
           </p>
         )}
 
@@ -91,11 +117,27 @@ export function ConnectionTree({ onEdit, onCreate }: Props) {
                   <button
                     type="button"
                     onClick={() => void openConnection(config)}
-                    className="min-w-0 flex-1 truncate text-left text-[12px] text-shell-200"
+                    className="flex min-w-0 flex-1 items-center gap-1 text-left text-[12px] text-shell-200"
                     title={`${config.username}@${config.host}:${config.port}`}
                   >
-                    <span className="mr-1 text-ok">●</span>
-                    {config.name || `${config.username}@${config.host}`}
+                    <span className="shrink-0 text-ok">●</span>
+                    <span className="truncate">{config.name || `${config.username}@${config.host}`}</span>
+                    {config.tags.length > 0 && (
+                      <span className="ml-0.5 flex shrink-0 items-center gap-0.5">
+                        {config.tags.slice(0, 3).map((tagId) => {
+                          const tag = tagMap.get(tagId)
+                          if (!tag) return null
+                          return (
+                            <span
+                              key={tagId}
+                              title={tag.name}
+                              className="h-1.5 w-1.5 rounded-full"
+                              style={{ backgroundColor: tag.color }}
+                            />
+                          )
+                        })}
+                      </span>
+                    )}
                   </button>
 
                   <button
@@ -120,5 +162,37 @@ export function ConnectionTree({ onEdit, onCreate }: Props) {
         ))}
       </div>
     </div>
+  )
+}
+
+function FilterChip({
+  label,
+  color,
+  active,
+  onClick
+}: {
+  label: string
+  color?: string
+  active: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] transition-colors"
+      style={
+        active
+          ? {
+              borderColor: color ?? '#3d9be9',
+              color: color ?? '#5fb0f0',
+              backgroundColor: `${color ?? '#3d9be9'}22`
+            }
+          : { borderColor: '#2b3038', color: '#7c8593' }
+      }
+    >
+      {color && <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />}
+      {label}
+    </button>
   )
 }

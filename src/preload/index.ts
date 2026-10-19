@@ -10,6 +10,7 @@ import type {
   SshDataEvent,
   SshExitEvent,
   SshStateEvent,
+  Tag,
   TransferProgress
 } from '@shared/types'
 
@@ -27,6 +28,11 @@ const api: SshTerminalApi = {
     remove: (id) => ipcRenderer.invoke(IPC.connectionDelete, id) as Promise<boolean>,
     exportAll: () => ipcRenderer.invoke(IPC.connectionExport) as Promise<string | null>,
     importAll: () => ipcRenderer.invoke(IPC.connectionImport) as Promise<number>
+  },
+  tags: {
+    list: () => ipcRenderer.invoke(IPC.tagList) as Promise<Tag[]>,
+    save: (tag) => ipcRenderer.invoke(IPC.tagSave, tag) as Promise<Tag>,
+    remove: (id) => ipcRenderer.invoke(IPC.tagDelete, id) as Promise<boolean>
   },
   ssh: {
     connect: (options: SshConnectOptions) => ipcRenderer.invoke(IPC.sshConnect, options) as Promise<void>,
