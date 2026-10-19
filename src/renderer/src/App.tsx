@@ -13,6 +13,7 @@ import { MonitorPanel } from './components/monitor/MonitorPanel'
 import { SftpPanel } from './components/sftp/SftpPanel'
 import { BottomPanel } from './components/layout/BottomPanel'
 import { EditorDialog } from './components/editor/EditorDialog'
+import { SyncDialog } from './components/sync/SyncDialog'
 
 export default function App() {
   const tabs = useAppStore((s) => s.tabs)
@@ -30,12 +31,14 @@ export default function App() {
   const bottomPanelOpen = useAppStore((s) => s.bottomPanelOpen)
   const updateTabState = useAppStore((s) => s.updateTabState)
   const pushSample = useAppStore((s) => s.pushSample)
+  const setSyncNotice = useAppStore((s) => s.setSyncNotice)
 
   const [dialog, setDialog] = useState<{ open: boolean; editing: ConnectionConfig | null }>({
     open: false,
     editing: null
   })
   const [tagManagerOpen, setTagManagerOpen] = useState(false)
+  const [syncOpen, setSyncOpen] = useState(false)
 
   const activeTab = tabs.find((t) => t.id === activeTabId) ?? null
 
@@ -117,6 +120,10 @@ export default function App() {
     const offHistory = window.api.history.onAdded(appendHistory)
     const offDownload = window.api.downloads.onUpdated(upsertDownload)
     const offDownloadRemoved = window.api.downloads.onRemoved(removeDownload)
+    const offSync = window.api.sync.onStatus((result) => {
+      setSyncNotice(result)
+      window.setTimeout(() => setSyncNotice(null), 5000)
+    })
 
     return () => {
       offData()
@@ -126,8 +133,9 @@ export default function App() {
       offHistory()
       offDownload()
       offDownloadRemoved()
+      offSync()
     }
-  }, [updateTabState, pushSample, appendHistory, upsertDownload, removeDownload])
+  }, [updateTabState, pushSample, appendHistory, upsertDownload, removeDownload, setSyncNotice])
 
   return (
     <div className="flex h-full flex-col">
@@ -139,6 +147,7 @@ export default function App() {
             onCreate={() => setDialog({ open: true, editing: null })}
             onEdit={(config) => setDialog({ open: true, editing: config })}
             onManageTags={() => setTagManagerOpen(true)}
+            onSync={() => setSyncOpen(true)}
           />
         )}
 
@@ -175,6 +184,8 @@ export default function App() {
       )}
 
       {tagManagerOpen && <TagManagerDialog onClose={() => setTagManagerOpen(false)} />}
+
+      {syncOpen && <SyncDialog onClose={() => setSyncOpen(false)} />}
 
       <EditorDialog />
     </div>

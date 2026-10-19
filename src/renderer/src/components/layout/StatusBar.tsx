@@ -19,6 +19,7 @@ export function StatusBar() {
   const toggleBottomPanel = useAppStore((s) => s.toggleBottomPanel)
   const sidebarOpen = useAppStore((s) => s.sidebarOpen)
   const toggleSidebar = useAppStore((s) => s.toggleSidebar)
+  const syncNotice = useAppStore((s) => s.syncNotice)
 
   const tab = tabs.find((t) => t.id === activeTabId)
   const sample = useAppStore((s) => (activeTabId ? s.samples[activeTabId]?.at(-1) : undefined))
@@ -35,6 +36,11 @@ export function StatusBar() {
           ☰ 连接
         </button>
         <span className="text-shell-600">|</span>
+        {syncNotice && (
+          <span className={`truncate ${syncNotice.ok ? 'text-ok' : 'text-danger'}`}>
+            ☁ {syncNotice.message}
+          </span>
+        )}
         {tab ? (
           <>
             <span className="text-shell-300">{stateText[tab.state]}</span>

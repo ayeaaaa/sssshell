@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { app } from 'electron'
 import type { QuickCommand } from '@shared/types'
+import { mergeById } from '../sync/merge'
 
 /** 首次使用时预置的常用命令，用户可自行删改 */
 const SEED: Array<Pick<QuickCommand, 'name' | 'command' | 'autoRun'>> = [
@@ -69,6 +70,16 @@ export class CommandStore {
     if (this.commands.length === before) return false
     this.persist()
     return true
+  }
+
+  /** 同步恢复：按 id 合并快捷命令，远端同 id 覆盖本地 */
+  mergeBackup(commands: QuickCommand[]): number {
+    this.commands = mergeById(
+      this.commands,
+      commands.filter((command) => Boolean(command?.id && command?.name && command?.command))
+    )
+    this.persist()
+    return this.commands.length
   }
 
   private load(): void {

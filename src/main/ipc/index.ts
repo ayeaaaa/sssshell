@@ -2,12 +2,13 @@ import { readFileSync, writeFileSync } from 'node:fs'
 import { BrowserWindow, dialog, ipcMain } from 'electron'
 import type { IpcMainInvokeEvent, OpenDialogOptions } from 'electron'
 import { IPC } from '@shared/ipc'
-import type { CommandHistoryEntry, ConnectionConfig, DownloadTask, QuickCommand, RemoteSaveRequest, SshConnectOptions, SshResizeRequest, SshWriteRequest, Tag } from '@shared/types'
+import type { CommandHistoryEntry, ConnectionConfig, DownloadTask, QuickCommand, RemoteSaveRequest, SshConnectOptions, SshResizeRequest, SshWriteRequest, SyncSettings, Tag } from '@shared/types'
 import type { ConnectionStore } from '../store/connectionStore'
 import type { CommandStore } from '../store/commandStore'
 import type { HistoryStore } from '../store/historyStore'
 import type { DownloadManager } from '../download/DownloadManager'
 import type { EditorService } from '../editor/EditorService'
+import type { SyncService } from '../sync/SyncService'
 import { remoteStat } from '../sftp/remoteFs'
 import type { SessionManager } from '../ssh/SessionManager'
 import type { SftpService } from '../sftp/SftpService'
@@ -23,6 +24,7 @@ export interface IpcDeps {
   monitor: MonitorService
   downloads: DownloadManager
   editor: EditorService
+  sync: SyncService
 }
 
 export function registerIpc({
@@ -33,14 +35,23 @@ export function registerIpc({
   sftp,
   monitor,
   downloads,
-  editor
+  editor,
+  sync
 }: IpcDeps): void {
   // ---------- 连接配置 ----------
   ipcMain.handle(IPC.connectionList, (): ConnectionConfig[] => store.list())
 
-  ipcMain.handle(IPC.connectionSave, (_event, config: ConnectionConfig): ConnectionConfig => store.save(config))
+  ipcMain.handle(IPC.connectionSave, (_event, config: ConnectionConfig): ConnectionConfig => {
+    const saved = store.save(config)
+    sync.notifyChange()
+    return saved
+  })
 
-  ipcMain.handle(IPC.connectionDelete, (_event, id: string): boolean => store.delete(id))
+  ipcMain.handle(IPC.connectionDelete, (_event, id: string): boolean => {
+    const deleted = store.delete(id)
+    if (deleted) sync.notifyChange()
+    return deleted
+  })
 
   ipcMain.handle(IPC.connectionExport, async (): Promise<string | null> => {
     const { canceled, filePath } = await dialog.showSaveDialog({
@@ -60,26 +71,43 @@ export function registerIpc({
       filters: [{ name: 'JSON', extensions: ['json'] }]
     })
     if (canceled || filePaths.length === 0) return 0
-    return store.importAll(readFileSync(filePaths[0], 'utf8'))
+    const count = store.importAll(readFileSync(filePaths[0], 'utf8'))
+    if (count > 0) sync.notifyChange()
+    return count
   })
 
   // ---------- 标签 ----------
   ipcMain.handle(IPC.tagList, (): Tag[] => store.listTags())
 
-  ipcMain.handle(IPC.tagSave, (_event, tag: Partial<Tag> & Pick<Tag, 'name'>): Tag => store.saveTag(tag))
+  ipcMain.handle(IPC.tagSave, (_event, tag: Partial<Tag> & Pick<Tag, 'name'>): Tag => {
+    const saved = store.saveTag(tag)
+    sync.notifyChange()
+    return saved
+  })
 
-  ipcMain.handle(IPC.tagDelete, (_event, id: string): boolean => store.deleteTag(id))
+  ipcMain.handle(IPC.tagDelete, (_event, id: string): boolean => {
+    const deleted = store.deleteTag(id)
+    if (deleted) sync.notifyChange()
+    return deleted
+  })
 
   // ---------- 快捷命令 ----------
   ipcMain.handle(IPC.commandList, (): QuickCommand[] => commands.list())
 
   ipcMain.handle(
     IPC.commandSave,
-    (_event, command: Partial<QuickCommand> & Pick<QuickCommand, 'name' | 'command'>): QuickCommand =>
-      commands.save(command)
+    (_event, command: Partial<QuickCommand> & Pick<QuickCommand, 'name' | 'command'>): QuickCommand => {
+      const saved = commands.save(command)
+      sync.notifyChange()
+      return saved
+    }
   )
 
-  ipcMain.handle(IPC.commandDelete, (_event, id: string): boolean => commands.delete(id))
+  ipcMain.handle(IPC.commandDelete, (_event, id: string): boolean => {
+    const deleted = commands.delete(id)
+    if (deleted) sync.notifyChange()
+    return deleted
+  })
 
   // ---------- 命令历史 ----------
   ipcMain.handle(IPC.historyList, (): CommandHistoryEntry[] => history.list())
@@ -225,6 +253,21 @@ export function registerIpc({
   // ---------- 监控 ----------
   ipcMain.handle(IPC.monitorStart, (_event, sessionId: string): void => monitor.start(sessionId))
   ipcMain.handle(IPC.monitorStop, (_event, sessionId: string): void => monitor.stop(sessionId))
+
+  // ---------- 配置同步 ----------
+  ipcMain.handle(IPC.syncGetSettings, (): SyncSettings | null => sync.getSettings())
+
+  ipcMain.handle(IPC.syncSaveSettings, (_event, settings: SyncSettings): void => {
+    sync.saveSettings(settings)
+  })
+
+  ipcMain.handle(IPC.syncPickFolder, (event): Promise<string | null> =>
+    pickDirectory(event, '选择同步文件夹')
+  )
+
+  ipcMain.handle(IPC.syncUpload, (_event, masterPassword: string) => sync.upload(masterPassword))
+
+  ipcMain.handle(IPC.syncDownload, (_event, masterPassword: string) => sync.download(masterPassword))
 
   // ---------- 窗口控制 ----------
   ipcMain.on(IPC.windowMinimize, (event) => BrowserWindow.fromWebContents(event.sender)?.minimize())

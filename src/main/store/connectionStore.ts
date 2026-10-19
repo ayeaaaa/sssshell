@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { app, safeStorage } from 'electron'
 import type { ConnectionConfig, Tag } from '@shared/types'
+import { mergeById } from '../sync/merge'
 
 const DEFAULT_TAG_COLOR = '#3d9be9'
 const STORE_VERSION = 3
@@ -82,6 +83,26 @@ export class ConnectionStore {
     if (this.connections.length === before) return false
     this.persist()
     return true
+  }
+
+  /** 同步恢复：按 id 合并标签和连接，远端同 id 覆盖本地 */
+  mergeBackup(tags: Tag[], connections: ConnectionConfig[]): { tags: number; connections: number } {
+    this.tags = mergeById(
+      this.tags,
+      tags.filter((tag) => Boolean(tag?.id && tag?.name))
+    )
+
+    const normalized = connections
+      .filter((config) => Boolean(config?.id && config?.host && config?.username))
+      .map((config) => ({
+        ...config,
+        tags: this.normalizeTagIds(Array.isArray(config.tags) ? config.tags : [])
+      }))
+
+    this.connections = mergeById(this.connections, normalized)
+    this.persist()
+
+    return { tags: this.tags.length, connections: this.connections.length }
   }
 
   // ---------- 标签 ----------

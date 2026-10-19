@@ -43,6 +43,14 @@ export const IPC = {
   editorRead: 'editor:read',
   editorSave: 'editor:save',
 
+  /** 配置同步 */
+  syncGetSettings: 'sync:get-settings',
+  syncSaveSettings: 'sync:save-settings',
+  syncPickFolder: 'sync:pick-folder',
+  syncUpload: 'sync:upload',
+  syncDownload: 'sync:download',
+  syncStatus: 'sync:status',
+
   /** SSH 会话 */
   sshConnect: 'ssh:connect',
   sshWrite: 'ssh:write',

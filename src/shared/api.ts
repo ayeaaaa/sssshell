@@ -16,6 +16,9 @@ import type {
   SshDataEvent,
   SshExitEvent,
   SshStateEvent,
+  SyncDownloadResult,
+  SyncResult,
+  SyncSettings,
   Tag,
   TransferProgress
 } from './types'
@@ -92,6 +95,16 @@ export interface SshTerminalApi {
   editor: {
     read(sessionId: string, path: string): Promise<RemoteFileContent>
     save(request: RemoteSaveRequest): Promise<RemoteSaveResult>
+  }
+  sync: {
+    getSettings(): Promise<SyncSettings | null>
+    saveSettings(settings: SyncSettings): Promise<void>
+    /** 弹出文件夹选择框，用于本地同步目录 */
+    pickFolder(): Promise<string | null>
+    upload(masterPassword: string): Promise<SyncResult>
+    download(masterPassword: string): Promise<SyncDownloadResult>
+    /** 自动上传结果推送 */
+    onStatus(callback: (result: SyncResult) => void): Unsubscribe
   }
   monitor: {
     start(sessionId: string): Promise<void>

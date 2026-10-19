@@ -16,6 +16,9 @@ import type {
   SshDataEvent,
   SshExitEvent,
   SshStateEvent,
+  SyncDownloadResult,
+  SyncResult,
+  SyncSettings,
   Tag,
   TransferProgress
 } from '@shared/types'
@@ -90,6 +93,17 @@ const api: SshTerminalApi = {
   editor: {
     read: (sessionId, path) => ipcRenderer.invoke(IPC.editorRead, sessionId, path) as Promise<RemoteFileContent>,
     save: (request: RemoteSaveRequest) => ipcRenderer.invoke(IPC.editorSave, request) as Promise<RemoteSaveResult>
+  },
+  sync: {
+    getSettings: () => ipcRenderer.invoke(IPC.syncGetSettings) as Promise<SyncSettings | null>,
+    saveSettings: (settings: SyncSettings) =>
+      ipcRenderer.invoke(IPC.syncSaveSettings, settings) as Promise<void>,
+    pickFolder: () => ipcRenderer.invoke(IPC.syncPickFolder) as Promise<string | null>,
+    upload: (masterPassword: string) =>
+      ipcRenderer.invoke(IPC.syncUpload, masterPassword) as Promise<SyncResult>,
+    download: (masterPassword: string) =>
+      ipcRenderer.invoke(IPC.syncDownload, masterPassword) as Promise<SyncDownloadResult>,
+    onStatus: (callback) => subscribe<SyncResult>(IPC.syncStatus, callback)
   },
   monitor: {
     start: (sessionId) => ipcRenderer.invoke(IPC.monitorStart, sessionId) as Promise<void>,

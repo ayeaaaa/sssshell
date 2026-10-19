@@ -47,6 +47,8 @@ interface AppState {
   downloads: DownloadTask[]
   /** 正在在线编辑的文件，null 表示编辑器没开 */
   editingFile: { sessionId: string; path: string } | null
+  /** 自动上传的结果提示 */
+  syncNotice: { ok: boolean; message: string } | null
   /** sessionId -> 最近若干次采样 */
   samples: Record<string, MonitorSample[]>
 
@@ -79,6 +81,8 @@ interface AppState {
 
   openEditor: (sessionId: string, path: string) => void
   closeEditor: () => void
+
+  setSyncNotice: (notice: { ok: boolean; message: string } | null) => void
 
   openConnection: (config: ConnectionConfig) => Promise<void>
   closeTab: (id: string) => Promise<void>
@@ -142,6 +146,7 @@ export const useAppStore = create<AppState>((set, get) => {
     history: [],
     downloads: [],
     editingFile: null,
+    syncNotice: null,
     samples: {},
 
     async loadConnections() {
@@ -260,6 +265,10 @@ export const useAppStore = create<AppState>((set, get) => {
 
     closeEditor() {
       set({ editingFile: null })
+    },
+
+    setSyncNotice(notice) {
+      set({ syncNotice: notice })
     },
 
     async openConnection(config) {

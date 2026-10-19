@@ -35,6 +35,11 @@ src/
 │  ├─ editor/
 │  │  ├─ EditorService.ts    远程文本读写、mtime 冲突检测、原子替换
 │  │  └─ binary.ts           二进制内容判定
+│  ├─ sync/
+│  │  ├─ SyncService.ts      配置打包、上传 / 下载、自动上传
+│  │  ├─ crypto.ts           主密码 + AES-256-GCM 加解密
+│  │  ├─ backends.ts         本地 / WebDAV / FTP / SFTP 四种存储
+│  │  └─ merge.ts            按 id 合并配置
 │  ├─ monitor/MonitorService.ts  解析 /proc 得到 CPU / 内存 / 磁盘 / 网络
 │  └─ store/
 │     ├─ connectionStore.ts  连接 + 标签持久化（userData/connections.json）
@@ -49,6 +54,7 @@ src/
 │  │  ├─ commands/          快捷命令卡片、命令历史、新建/编辑命令弹窗
 │  │  ├─ downloads/         下载管理器面板
 │  │  ├─ editor/            在线编辑器（CodeMirror）
+│  │  ├─ sync/              配置同步对话框
 │  │  ├─ terminal/          xterm 终端、标签页、实例注册表、配色
 │  │  ├─ monitor/           服务器监控面板、迷你折线图
 │  │  └─ sftp/              文件管理面板
@@ -89,6 +95,7 @@ Node 24 / npm 11 下验证通过。
 - **目录递归下载**：SFTP 里对目录点下载，会保留目录结构把所有文件排进下载队列
 - **文件多选**：点工具栏「选择」进入批量选择模式（复选框 / `Ctrl` 点选 / `Shift` 连选），选中后可批量下载（只弹一次目录选择框）或批量删除
 - **密码加密**：连接密码和私钥口令用 Electron `safeStorage`（Windows DPAPI）加密后落盘，不再明文存储
+- **配置同步**：连接 / 标签 / 快捷命令打包成一个备份文件，用主密码（AES-256-GCM）加密后上传到本地文件夹（百度网盘同步空间、OneDrive 等）、WebDAV、FTP/FTPS 或 SFTP；换机器下载后用同一个主密码恢复，按 id 合并；可选配置变化后自动上传
 - 服务器监控：CPU、内存、交换分区、磁盘、网速、负载、运行时长、进程数，带历史曲线
 - SFTP 文件管理：浏览、进入目录、新建文件夹、重命名、删除（递归）、上传、下载、传输进度
 - 自绘标题栏（无边框窗口）、深色主题
@@ -112,6 +119,8 @@ Node 24 / npm 11 下验证通过。
 - 私钥路径目前是手输，还没做文件选择器
 - 上传只支持文件，暂不支持整个目录递归上传
 - 在线编辑按 UTF-8 读写，GBK 等其它编码会乱码；单文件上限 2 MB
+- 配置同步的 WebDAV / FTP / SFTP 后端只做了基础实现，尚未在真实服务上逐一验证；本地文件夹方式已完整验证
+- 同步主密码不会保存，忘记后备份文件无法恢复
 - 命令历史靠解析键盘输入得到：Tab 补全的内容拿不到，用方向键翻旧命令时可能漏记；vim/top 这类全屏程序里的按键会被自动忽略
 - 没设置 CSP，Electron 会在开发模式提示安全警告；打包前应补上严格的 `Content-Security-Policy`
 - 端口转发、SFTP 拖拽上传等 FinalShell 特性还没做

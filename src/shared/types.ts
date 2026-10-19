@@ -209,3 +209,50 @@ export interface RemoteSaveRequest {
 export type RemoteSaveResult =
   | { ok: true; mtime: number }
   | { ok: false; reason: 'conflict' | 'error'; message?: string; mtime?: number }
+
+// ---------- 配置同步 ----------
+
+export type SyncBackendType = 'local' | 'webdav' | 'ftp' | 'sftp'
+
+export interface SyncBackendConfig {
+  type: SyncBackendType
+  /** local：本地文件夹（可指向网盘的同步目录） */
+  localDir?: string
+  /** webdav：基础 URL；ftp / sftp：主机 */
+  host?: string
+  port?: number
+  username?: string
+  password?: string
+  /** 远程目录，备份文件固定叫 ssh-terminal-backup.enc */
+  remoteDir?: string
+  /** ftp：是否用 FTPS */
+  secure?: boolean
+}
+
+export interface SyncSettings {
+  backend: SyncBackendConfig
+  /** 配置变化后自动上传（需要本次运行输入过主密码） */
+  autoUpload: boolean
+  lastSyncAt?: number
+}
+
+export interface SyncResult {
+  ok: boolean
+  message: string
+  syncedAt?: number
+}
+
+export interface SyncDownloadResult extends SyncResult {
+  connections: number
+  tags: number
+  commands: number
+}
+
+/** 加密前的备份内容 */
+export interface BackupPayload {
+  version: number
+  exportedAt: number
+  connections: ConnectionConfig[]
+  tags: Tag[]
+  commands: QuickCommand[]
+}
