@@ -1,8 +1,8 @@
 {
-  "name": "simpleshell",
-  "productName": "SimpleShell",
+  "name": "sssshell",
+  "productName": "sssshell",
   "version": "0.1.0",
-  "description": "SimpleShell —— Windows SSH / SFTP 客户端",
+  "description": "sssshell —— Windows SSH / SFTP 客户端",
   "main": "./out/main/index.js",
   "author": "",
   "license": "MIT",

@@ -1,5 +1,5 @@
-appId: com.simpleshell.app
-productName: SimpleShell
+appId: com.sssshell.app
+productName: sssshell
 copyright: Copyright © 2026
 
 directories:
@@ -22,6 +22,6 @@ nsis:
   perMachine: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
-  shortcutName: SimpleShell
+  shortcutName: sssshell
 
 npmRebuild: false

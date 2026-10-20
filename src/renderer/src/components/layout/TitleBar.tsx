@@ -3,7 +3,7 @@ export function TitleBar() {
     <header className="drag-region flex h-9 shrink-0 items-center justify-between border-b border-shell-700 bg-shell-950 pl-3">
       <div className="flex items-center gap-2 text-[12px] text-shell-300">
         <span className="text-accent-500">◧</span>
-        <span className="font-medium text-shell-200">SimpleShell</span>
+        <span className="font-medium text-shell-200">sssshell</span>
         <span className="text-shell-400">SSH / SFTP 终端</span>
       </div>
 

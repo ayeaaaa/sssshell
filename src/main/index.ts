@@ -18,16 +18,20 @@ import { broadcast } from './ipc/broadcast'
 let mainWindow: BrowserWindow | null = null
 
 /**
- * 应用从 ssh-terminal 改名为 SimpleShell，userData 目录也跟着变了。
- * 首次启动时把旧目录的数据复制过来，避免连接和设置丢失。
+ * 应用改过几次名字，userData 目录也跟着变。
+ * 首次启动时从最近一个有数据的旧目录复制过来，避免连接和设置丢失。
  */
 function migrateUserData(): void {
   const target = app.getPath('userData')
-  const legacy = join(app.getPath('appData'), 'ssh-terminal')
-  if (target === legacy) return
+  const appData = app.getPath('appData')
+  const marker = join(target, '.migrated-user-data')
+  if (existsSync(marker)) return
 
-  const marker = join(target, '.migrated-from-ssh-terminal')
-  if (existsSync(marker) || !existsSync(legacy)) return
+  const legacy = ['SimpleShell', 'ssh-terminal']
+    .map((name) => join(appData, name))
+    .find((dir) => dir !== target && existsSync(join(dir, 'connections.json')))
+
+  if (!legacy) return
 
   try {
     mkdirSync(target, { recursive: true })
@@ -73,7 +77,7 @@ function createWindow(): void {
     show: false,
     frame: false,
     backgroundColor: '#1b1d22',
-    title: 'SimpleShell',
+    title: 'sssshell',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       // ESM preload / ssh2 需要 Node 环境
@@ -103,7 +107,7 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
-  app.setAppUserModelId('com.simpleshell.app')
+  app.setAppUserModelId('com.sssshell.app')
   registerIpc({ store, commands, history, sessions, sftp, monitor, downloads, editor, sync })
   createWindow()
 

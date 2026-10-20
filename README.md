@@ -1,4 +1,4 @@
-# SimpleShell
+# sssshell
 
 Windows 下的 SSH / SFTP 客户端：连接树 + 多标签终端 + 服务器监控 + 文件管理，装在一个桌面应用里。
 
@@ -81,7 +81,7 @@ Node 24 / npm 11 下验证通过。
 
 ## 已实现
 
-- 连接配置的增删改查、分组、搜索、导入导出（存 `%APPDATA%/SimpleShell/connections.json`）
+- 连接配置的增删改查、分组、搜索、导入导出（存 `%APPDATA%/sssshell/connections.json`）
 - **连接标签**：给服务器打彩色标签，左侧按标签筛选；标签可新建、改名、点色块换色、删除（删除时会自动从连接上摘掉）
 - 密码 / 私钥两种认证，支持 keyboard-interactive 回退、心跳保活
 - 多标签终端：xterm.js + fit/search/web-links，窗口尺寸变化自动 `resize` 到远端
