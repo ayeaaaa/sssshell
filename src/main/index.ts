@@ -1,4 +1,4 @@
-import { cpSync, existsSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { app, BrowserWindow, shell } from 'electron'
 import { IPC } from '@shared/ipc'
@@ -25,12 +25,25 @@ function migrateUserData(): void {
   const target = app.getPath('userData')
   const legacy = join(app.getPath('appData'), 'ssh-terminal')
   if (target === legacy) return
-  if (!existsSync(target) && existsSync(legacy)) {
-    try {
-      cpSync(legacy, target, { recursive: true })
-    } catch {
-      // 复制失败就让用户重新配置，至少应用还能启动
+
+  const marker = join(target, '.migrated-from-ssh-terminal')
+  if (existsSync(marker) || !existsSync(legacy)) return
+
+  try {
+    mkdirSync(target, { recursive: true })
+    for (const name of [
+      'connections.json',
+      'quick-commands.json',
+      'command-history.json',
+      'downloads.json',
+      'sync.json'
+    ]) {
+      const from = join(legacy, name)
+      if (existsSync(from)) copyFileSync(from, join(target, name))
     }
+    writeFileSync(marker, new Date().toISOString(), 'utf8')
+  } catch {
+    // 复制失败就让用户重新配置，至少应用还能启动
   }
 }
 
