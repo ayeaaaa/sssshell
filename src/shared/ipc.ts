@@ -51,6 +51,9 @@ export const IPC = {
   syncDownload: 'sync:download',
   syncStatus: 'sync:status',
 
+  /** 文件选择 */
+  pickPrivateKey: 'dialog:pick-private-key',
+
   /** SSH 会话 */
   sshConnect: 'ssh:connect',
   sshWrite: 'ssh:write',

@@ -69,6 +69,11 @@ export function ConnectionDialog({ editing, onClose }: Props) {
     setNewTag(null)
   }
 
+  const pickPrivateKey = async (): Promise<void> => {
+    const path = await window.api.dialog.pickPrivateKey()
+    if (path) patch({ privateKeyPath: path })
+  }
+
   const port = Number.parseInt(form.port, 10)
   const keepalive = Number.parseInt(form.keepaliveInterval, 10)
   const valid = useMemo(
@@ -256,12 +261,21 @@ export function ConnectionDialog({ editing, onClose }: Props) {
           ) : (
             <>
               <Field label="私钥文件路径" span>
-                <input
-                  value={form.privateKeyPath}
-                  onChange={(e) => patch({ privateKeyPath: e.target.value })}
-                  placeholder="C:\Users\me\.ssh\id_rsa"
-                  className={inputClass}
-                />
+                <div className="flex gap-2">
+                  <input
+                    value={form.privateKeyPath}
+                    onChange={(e) => patch({ privateKeyPath: e.target.value })}
+                    placeholder="C:\Users\me\.ssh\id_rsa"
+                    className={inputClass}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => void pickPrivateKey()}
+                    className="h-7 shrink-0 rounded border border-shell-500 px-3 text-[12px] text-shell-200 transition-colors hover:bg-shell-700"
+                  >
+                    浏览…
+                  </button>
+                </div>
               </Field>
               <Field label="私钥口令" span>
                 <input

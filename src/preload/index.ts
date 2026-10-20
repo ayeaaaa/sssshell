@@ -105,6 +105,9 @@ const api: SshTerminalApi = {
       ipcRenderer.invoke(IPC.syncDownload, masterPassword) as Promise<SyncDownloadResult>,
     onStatus: (callback) => subscribe<SyncResult>(IPC.syncStatus, callback)
   },
+  dialog: {
+    pickPrivateKey: () => ipcRenderer.invoke(IPC.pickPrivateKey) as Promise<string | null>
+  },
   monitor: {
     start: (sessionId) => ipcRenderer.invoke(IPC.monitorStart, sessionId) as Promise<void>,
     stop: (sessionId) => ipcRenderer.invoke(IPC.monitorStop, sessionId) as Promise<void>,

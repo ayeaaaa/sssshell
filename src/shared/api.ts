@@ -106,6 +106,10 @@ export interface SshTerminalApi {
     /** 自动上传结果推送 */
     onStatus(callback: (result: SyncResult) => void): Unsubscribe
   }
+  dialog: {
+    /** 选择私钥文件，取消返回 null */
+    pickPrivateKey(): Promise<string | null>
+  }
   monitor: {
     start(sessionId: string): Promise<void>
     stop(sessionId: string): Promise<void>

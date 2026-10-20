@@ -269,6 +269,22 @@ export function registerIpc({
 
   ipcMain.handle(IPC.syncDownload, (_event, masterPassword: string) => sync.download(masterPassword))
 
+  // ---------- 文件选择 ----------
+  ipcMain.handle(IPC.pickPrivateKey, async (event): Promise<string | null> => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    const options: OpenDialogOptions = {
+      title: '选择私钥文件',
+      properties: ['openFile', 'showHiddenFiles', 'dontAddToRecent'],
+      filters: [
+        { name: '私钥文件', extensions: ['pem', 'key', 'ppk', 'rsa', 'ed25519', 'pub'] },
+        { name: '所有文件', extensions: ['*'] }
+      ]
+    }
+
+    const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
+    return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0]
+  })
+
   // ---------- 窗口控制 ----------
   ipcMain.on(IPC.windowMinimize, (event) => BrowserWindow.fromWebContents(event.sender)?.minimize())
   ipcMain.on(IPC.windowToggleMaximize, (event) => {
