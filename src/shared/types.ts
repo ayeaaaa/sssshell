@@ -13,7 +13,7 @@ export interface Tag {
   color: string
 }
 
-/** 一条保存的连接配置（对应 FinalShell 左侧的连接树节点） */
+/** 一条保存的连接配置（左侧连接树的节点） */
 export interface ConnectionConfig {
   id: string
   /** 显示名称，留空时用 username@host */

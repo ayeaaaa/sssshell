@@ -1,7 +1,8 @@
 {
-  "name": "ssh-terminal",
+  "name": "simpleshell",
+  "productName": "SimpleShell",
   "version": "0.1.0",
-  "description": "FinalShell 风格的 Windows SSH / SFTP 客户端",
+  "description": "SimpleShell —— Windows SSH / SFTP 客户端",
   "main": "./out/main/index.js",
   "author": "",
   "license": "MIT",

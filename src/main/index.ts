@@ -1,3 +1,4 @@
+import { cpSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { app, BrowserWindow, shell } from 'electron'
 import { IPC } from '@shared/ipc'
@@ -15,6 +16,25 @@ import { registerIpc } from './ipc'
 import { broadcast } from './ipc/broadcast'
 
 let mainWindow: BrowserWindow | null = null
+
+/**
+ * 应用从 ssh-terminal 改名为 SimpleShell，userData 目录也跟着变了。
+ * 首次启动时把旧目录的数据复制过来，避免连接和设置丢失。
+ */
+function migrateUserData(): void {
+  const target = app.getPath('userData')
+  const legacy = join(app.getPath('appData'), 'ssh-terminal')
+  if (target === legacy) return
+  if (!existsSync(target) && existsSync(legacy)) {
+    try {
+      cpSync(legacy, target, { recursive: true })
+    } catch {
+      // 复制失败就让用户重新配置，至少应用还能启动
+    }
+  }
+}
+
+migrateUserData()
 
 const store = new ConnectionStore()
 const commands = new CommandStore()
@@ -40,7 +60,7 @@ function createWindow(): void {
     show: false,
     frame: false,
     backgroundColor: '#1b1d22',
-    title: 'SSH Terminal',
+    title: 'SimpleShell',
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       // ESM preload / ssh2 需要 Node 环境
@@ -70,7 +90,7 @@ function createWindow(): void {
 }
 
 app.whenReady().then(() => {
-  app.setAppUserModelId('com.example.sshterminal')
+  app.setAppUserModelId('com.simpleshell.app')
   registerIpc({ store, commands, history, sessions, sftp, monitor, downloads, editor, sync })
   createWindow()
 

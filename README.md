@@ -1,8 +1,8 @@
-# SSH Terminal
+# SimpleShell
 
-FinalShell 风格的 Windows SSH / SFTP 客户端。目标是把 FinalShell 那套「连接树 + 多标签终端 + 服务器监控 + 文件管理」的体验，用 Web 技术栈重做一遍。
+Windows 下的 SSH / SFTP 客户端：连接树 + 多标签终端 + 服务器监控 + 文件管理，装在一个桌面应用里。
 
-当前是**可运行的骨架**：能连服务器、开交互式 Shell、看监控、传文件。细节功能还在补齐，路线见 [docs/ROADMAP.md](docs/ROADMAP.md)。
+能连服务器、开交互式 Shell、看监控、传文件、在线编辑、同步配置。路线见 [docs/ROADMAP.md](docs/ROADMAP.md)。
 
 ## 技术栈
 
@@ -81,7 +81,7 @@ Node 24 / npm 11 下验证通过。
 
 ## 已实现
 
-- 连接配置的增删改查、分组、搜索、导入导出（存 `%APPDATA%/ssh-terminal/connections.json`）
+- 连接配置的增删改查、分组、搜索、导入导出（存 `%APPDATA%/SimpleShell/connections.json`）
 - **连接标签**：给服务器打彩色标签，左侧按标签筛选；标签可新建、改名、点色块换色、删除（删除时会自动从连接上摘掉）
 - 密码 / 私钥两种认证，支持 keyboard-interactive 回退、心跳保活
 - 多标签终端：xterm.js + fit/search/web-links，窗口尺寸变化自动 `resize` 到远端
@@ -123,7 +123,7 @@ Node 24 / npm 11 下验证通过。
 - 同步主密码不会保存，忘记后备份文件无法恢复
 - 命令历史靠解析键盘输入得到：Tab 补全的内容拿不到，用方向键翻旧命令时可能漏记；vim/top 这类全屏程序里的按键会被自动忽略
 - 没设置 CSP，Electron 会在开发模式提示安全警告；打包前应补上严格的 `Content-Security-Policy`
-- 端口转发、SFTP 拖拽上传等 FinalShell 特性还没做
+- 端口转发、SFTP 拖拽上传等特性还没做
 
 ## 约定
 

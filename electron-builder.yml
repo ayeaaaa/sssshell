@@ -1,5 +1,5 @@
-appId: com.example.sshterminal
-productName: SSHTerminal
+appId: com.simpleshell.app
+productName: SimpleShell
 copyright: Copyright © 2026
 
 directories:
@@ -22,6 +22,6 @@ nsis:
   perMachine: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
-  shortcutName: SSHTerminal
+  shortcutName: SimpleShell
 
 npmRebuild: false
