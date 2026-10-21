@@ -106,12 +106,16 @@ export default function App() {
       } else if (state === 'error') {
         writeLocalNotice(sessionId, `连接失败：${message ?? '未知错误'}`, '\x1b[38;2;224;87;79m')
       } else if (state === 'closed') {
-        writeLocalNotice(sessionId, '连接已断开')
+        writeLocalNotice(sessionId, message ? `连接已断开：${message}` : '连接已断开')
       }
     })
 
     const offExit = window.api.ssh.onExit(({ sessionId, code }) => {
-      updateTabState(sessionId, 'closed')
+      // state 事件已经带上了断开原因，这里不要用空 message 覆盖
+      const current = useAppStore.getState().tabs.find((tab) => tab.id === sessionId)
+      if (current && current.state !== 'closed' && current.state !== 'error') {
+        updateTabState(sessionId, 'closed')
+      }
       void window.api.monitor.stop(sessionId)
       writeLocalNotice(sessionId, `会话结束${code === null ? '' : `（退出码 ${code}）`}`)
     })

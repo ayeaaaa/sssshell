@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs'
+import type { EventEmitter } from 'node:events'
 import { Client } from 'ssh2'
 import type { ClientChannel, ConnectConfig, SFTPWrapper } from 'ssh2'
 import type { CommandRecord, SshConnectOptions, SshSessionState } from '@shared/types'
@@ -57,12 +58,23 @@ export class SshSession {
       .on('error', (err: Error) => {
         this.setState('error', err.message)
       })
-      .on('close', () => {
-        if (this.state !== 'error') this.setState('closed')
+
+    // @types/ssh2 没声明 close 的参数，按 Node EventEmitter 的签名处理
+    ;(this.client as unknown as EventEmitter).on(
+      'close',
+      (hadError: boolean, code: number, signal: string) => {
+        if (this.state !== 'error') {
+          const detail = hadError
+            ? `连接异常关闭（code ${code}${signal ? ` / ${signal}` : ''}）`
+            : '连接已关闭'
+          this.setState('closed', detail)
+        }
         this.emitExit(null)
         this.dispose()
-      })
-      .connect(this.buildConnectConfig())
+      }
+    )
+
+    this.client.connect(this.buildConnectConfig())
   }
 
   private buildConnectConfig(): ConnectConfig {
@@ -100,6 +112,7 @@ export class SshSession {
       stream.on('data', (chunk: Buffer) => this.handleOutput(chunk))
       stream.stderr.on('data', (chunk: Buffer) => this.handleOutput(chunk))
       stream.on('close', () => {
+        if (this.state === 'ready') this.setState('closed', '远端关闭了 Shell')
         this.emitExit(null)
         this.dispose()
       })
